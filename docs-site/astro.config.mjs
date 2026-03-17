@@ -11,9 +11,9 @@ export default defineConfig({
     starlight({
       title: 'MCP/U',
       description: 'The Unified Interface for AI-Ready Microcontrollers — by 2edge.co',
-      social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/ThanabordeeN/mcpu' },
-      ],
+      social: {
+        github: 'https://github.com/ThanabordeeN/mcpu',
+      },
       editLink: {
         baseUrl: 'https://github.com/ThanabordeeN/mcpu/edit/main/docs-site/',
       },
