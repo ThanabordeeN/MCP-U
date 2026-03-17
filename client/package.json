@@ -1,12 +1,19 @@
 {
-  "name": "mcp-iot-client",
+  "name": "mcpu-client",
   "version": "1.0.0",
-  "description": "Universal MCP client — bridges Claude to any MCP-IoT device over Serial or TCP",
+  "description": "MCP/U client — bridges AI agents to ESP32/Arduino devices over Serial or TCP via the Model Context Protocol",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "mcu-mcp": "dist/index.js"
+    "mcpu": "dist/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ThanabordeeN/mcpu"
+  },
+  "keywords": ["mcp", "esp32", "arduino", "iot", "serial", "ai", "llm", "mcpu"],
+  "author": "2edge.co",
+  "license": "LGPL-3.0",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
