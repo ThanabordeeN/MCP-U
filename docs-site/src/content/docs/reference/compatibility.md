@@ -7,13 +7,13 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 
 ### Supported Boards
 
-| Board / Platform | Serial | WiFi TCP | Bluetooth | PWM freq | ADC |
-|-----------------|:------:|:--------:|:---------:|:--------:|:---:|
+| Board / Platform | Serial | WiFi TCP | Bluetooth | PWM | ADC |
+|-----------------|:------:|:--------:|:---------:|:---:|:---:|
 | ESP32 (all variants) | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
 | ESP32-S2 | ✅ | ✅ | ❌ | ✅ | ✅ |
 | ESP32-S3 | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
 | ESP32-C3 | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
-| ESP8266 (NodeMCU) | ✅ | ✅ | ❌ | ⚠️ fixed freq | ✅ |
+| ESP8266 (NodeMCU) | ✅ | ✅ | ❌ | ✅ | ✅ |
 | Arduino Uno (AVR) | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
 | Arduino Mega (AVR) | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
 | Arduino Nano | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
@@ -29,13 +29,13 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 #### ESP32 (Full Support)
 - All 4 pin types: `digital_output`, `digital_input`, `pwm_output`, `adc_input`
 - All 3 transports: Serial, WiFiClient, BluetoothSerial
-- `analogWriteFrequency()` for PWM frequency control
+- `pwm_write` uses `analogWrite` (5 kHz default) — use custom LEDC tool for other frequencies
 - Up to 32 pins / 32 tools (configurable via `MCP_MAX_PINS`, `MCP_MAX_TOOLS`)
 
 #### ESP8266
 - Serial and WiFiClient transports ✅
 - No Bluetooth ❌
-- PWM frequency is fixed (~1kHz) — `freq` param accepted but ignored ⚠️
+- `analogWrite` available, frequency fixed at ~1 kHz ⚠️
 - ADC: only 1 analog pin (A0) ⚠️
 
 #### AVR (Uno, Mega, Nano)
@@ -56,6 +56,7 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 | Feature | Status | Reason |
 |---------|--------|--------|
 | Async / non-blocking I/O | ❌ | Arduino `loop()` is single-threaded |
+| I2C built-in tools | ❌ | Use custom tools with your sensor library instead |
 | SPI built-in tools | ❌ | Implement as custom tools |
 | UART passthrough | ❌ | Out of scope |
 | OTA firmware update | ❌ | Out of scope |
@@ -78,12 +79,17 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 | Node 18 LTS | ✅ Supported |
 | Node < 18 | ❌ ES2022 + top-level await required |
 
-### Supported Transport Config
+:::caution[Bun compatibility]
+The `serialport` package uses native libuv bindings that Bun does not currently support. Use Node.js to run `npx mcpu-client`.
+:::
 
-| Transport | `devices.json` format | Env var format |
-|-----------|----------------------|----------------|
-| Serial (USB/UART) | `"transport":"serial","port":"/dev/ttyUSB0","baud":115200` | `id:/dev/ttyUSB0:115200` |
-| TCP (WiFi) | `"transport":"tcp","host":"192.168.1.50","port_num":3000` | `id:192.168.1.50:3000:tcp` |
+### Configuration Methods
+
+| Method | Format | Example |
+|--------|--------|---------|
+| `SERIAL_PORT` env | port path | `SERIAL_PORT=/dev/ttyACM0` |
+| `SERIAL_BAUD` env | baud rate | `SERIAL_BAUD=9600` (default: 115200) |
+| `DEVICES` env | `id:port:baud` or `id:host:port:tcp` | `esp32:/dev/ttyUSB0:115200` |
 
 ### Supported OS
 
@@ -103,3 +109,4 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 | HTTP / SSE transport | ❌ | stdio only in v1.0 |
 | Nested Zod schemas | ❌ | Flat schemas only (mirrors firmware constraint) |
 | Parallel requests to same device | ⚠️ | Works (ID matching), but no queue |
+| Bun runtime | ❌ | Use Node.js instead |

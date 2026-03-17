@@ -149,9 +149,11 @@ Discovery endpoint. Returns all tools with JSON Schema + pin registry.
 
 ### `pwm_write`
 
-**Params:** `{ "pin": <integer>, "duty": <0–255>, "freq": <Hz> }`
+Uses `analogWrite` — default 5 kHz. For custom frequency use a [custom LEDC tool](/guides/firmware/#pwm-with-custom-frequency-ledc).
 
-**Response:** `{ "pin": 9, "name": "motor", "duty": 128, "freq": 1000 }`
+**Params:** `{ "pin": <integer>, "duty": <0–255> }`
+
+**Response:** `{ "pin": 18, "name": "led_pwm", "duty": 128 }`
 
 ---
 

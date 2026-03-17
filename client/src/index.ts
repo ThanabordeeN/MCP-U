@@ -1,32 +1,18 @@
 #!/usr/bin/env node
 /**
- * MCP-IoT Universal Client
+ * MCP/U Client — by 2edge.co
  *
- * Connects to N MCU devices, discovers their tools via list_tools,
+ * Connects to MCU devices, discovers tools via list_tools,
  * and dynamically registers MCP tools — zero hardcoded tool names.
  *
  * Config (priority order):
- *   1. DEVICES env var  "id:port:baud,id2:host:port:tcp"
- *   2. devices.json in the client/ directory
- *
- * Claude Desktop config:
- *   {
- *     "mcpServers": {
- *       "mcu": {
- *         "command": "node",
- *         "args": ["/absolute/path/to/client/dist/index.js"],
- *         "env": { "DEVICES": "esp32-01:/dev/ttyUSB0:115200" }
- *       }
- *     }
- *   }
+ *   1. SERIAL_PORT env var  (single device shorthand)
+ *   2. DEVICES env var      "id:port:baud,id2:host:port:tcp"
  */
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-import { join, dirname } from "path";
 import { DeviceManager } from "./device_manager.js";
 import { json_schema_to_zod } from "./schema_builder.js";
 import type { DeviceConfig } from "./transport.js";
@@ -57,12 +43,7 @@ function load_devices(): DeviceConfig[] {
     });
   }
 
-  const config_path = join(dirname(fileURLToPath(import.meta.url)), "..", "devices.json");
-  try {
-    return JSON.parse(readFileSync(config_path, "utf8")) as DeviceConfig[];
-  } catch {
-    throw new Error(`No device config found. Set DEVICES env var or create devices.json`);
-  }
+  throw new Error("No device config found. Set SERIAL_PORT or DEVICES env var.");
 }
 
 // ---------------------------------------------------------------------------

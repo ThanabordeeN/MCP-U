@@ -8,12 +8,12 @@ description: System architecture, data flow, and design rationale for MCP/U.
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     AI / LLM Host                        │
-│  (Claude Desktop, Claude Code, any MCP-compatible host)  │
+│  (Claude Desktop, Claude Code, Gemini CLI, OpenCode...)  │
 └────────────────────────┬─────────────────────────────────┘
                          │  MCP Protocol (stdio)
                          ▼
 ┌──────────────────────────────────────────────────────────┐
-│               MCP/U Client (TypeScript)                  │
+│             mcpu-client (npm: mcpu-client)                │
 │                                                          │
 │  index.ts          — MCP Server, dynamic tool reg.       │
 │  transport.ts      — Serial / TCP abstraction            │
@@ -63,7 +63,7 @@ description: System architecture, data flow, and design rationale for MCP/U.
 
 ### `index.ts`
 
-- Loads device config (env var or `devices.json`)
+- Loads device config: `SERIAL_PORT` env → `DEVICES` env
 - Boots `DeviceManager`
 - Registers static meta-tool `list_devices`
 - Loops over all devices × all tools → `server.registerTool()` dynamically
@@ -106,7 +106,7 @@ DeviceManager.call("esp32-01", "gpio_write", { pin: 2, value: true })
 SerialTransport.call("gpio_write", { pin: 2, value: true }, timeout=5000)
     │  → {"jsonrpc":"2.0","id":42,"method":"gpio_write","params":{"pin":2,"value":true}}\n
     ▼
-/dev/ttyUSB0 ──────────────────────────────────────────► ESP32
+/dev/ttyACM0 ──────────────────────────────────────────► ESP32
                                                               │
                                                     McpDevice._dispatch()
                                                     _handle_gpio_write()
@@ -133,3 +133,4 @@ Claude receives result
 | Self-describing firmware | Client never hardcodes tool names — adding firmware tools is automatic |
 | Zod schemas from JSON Schema | MCP SDK requires Zod; firmware returns JSON Schema — thin bridge needed |
 | `device_id` as Zod literal | Prevents Claude from calling wrong device, no runtime lookup needed |
+| `SERIAL_PORT` env var | Simplest config for single-device use — one line to connect |

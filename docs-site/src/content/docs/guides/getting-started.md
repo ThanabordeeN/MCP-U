@@ -69,6 +69,21 @@ The MCP/U client is published on npm — no local clone needed.
 }
 ```
 
+Multiple devices:
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200"
+      }
+    }
+  }
+}
+```
+
 **Windows** — `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
@@ -88,16 +103,16 @@ The MCP/U client is published on npm — no local clone needed.
 ### Claude Code (CLI)
 
 ```bash
+# Single device
 claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+
+# Multiple devices
+claude mcp add mcpu -e DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 -- npx mcpu-client
 ```
 
 ### Gemini CLI
 
-```bash
-gemini mcp add mcpu npx mcpu-client
-```
-
-Then edit `~/.gemini/settings.json`:
+Edit `~/.gemini/settings.json`:
 
 ```json
 {
@@ -113,7 +128,27 @@ Then edit `~/.gemini/settings.json`:
 }
 ```
 
-Restart Claude Desktop / your agent. Claude can now control your MCU.
+### OpenCode
+
+`opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+Restart your agent. Claude can now control your MCU.
 
 ---
 
