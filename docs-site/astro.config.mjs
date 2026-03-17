@@ -5,8 +5,8 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  site: 'https://ThanabordeeN.github.io',
-  base: '/mcpu',
+  site: 'https://thanabordeen.github.io',
+  base: '/MCP-U',
   integrations: [
     starlight({
       title: 'MCP/U',
@@ -44,7 +44,7 @@ export default defineConfig({
       head: [
         {
           tag: 'meta',
-          attrs: { property: 'og:image', content: '/mcpu/og.png' },
+          attrs: { property: 'og:image', content: '/MCP-U/og.png' },
         },
       ],
     }),
