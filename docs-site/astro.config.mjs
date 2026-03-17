@@ -3,10 +3,12 @@
 
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import vercel from '@astrojs/vercel';
 
 export default defineConfig({
-  site: 'https://thanabordeen.github.io',
-  base: '/MCP-U',
+  site: 'https://mcpu-2edge.vercel.app',
+  output: 'static',
+  adapter: vercel(),
   integrations: [
     starlight({
       title: 'MCP/U',
@@ -44,7 +46,7 @@ export default defineConfig({
       head: [
         {
           tag: 'meta',
-          attrs: { property: 'og:image', content: '/MCP-U/og.png' },
+          attrs: { property: 'og:image', content: '/og.png' },
         },
       ],
     }),
