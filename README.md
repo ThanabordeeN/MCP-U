@@ -170,15 +170,15 @@ void my_handler(int id, JsonObject params) {
 
 ## Multi-Device Setup
 
-```json
-[
-  { "id": "robot-arm",   "transport": "serial", "port": "/dev/ttyUSB0", "baud": 115200 },
-  { "id": "greenhouse",  "transport": "serial", "port": "/dev/ttyUSB1", "baud": 115200 },
-  { "id": "display-esp", "transport": "tcp",    "host": "192.168.1.50", "port_num": 3000 }
-]
+Use the `DEVICES` env var with comma-separated entries:
+
+```bash
+DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 npx mcpu-client
 ```
 
-With multiple devices, tools are named `{device_id}__{tool_name}` (e.g. `robot-arm__gpio_write`).
+Format: `id:port:baud` (serial) or `id:host:port:tcp` (TCP)
+
+With multiple devices, tools are named `{device_id}__{tool_name}` (e.g. `robot__gpio_write`).
 
 ---
 

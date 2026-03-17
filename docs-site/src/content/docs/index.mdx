@@ -42,7 +42,7 @@ import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
 
 ```
 ┌─────────────────┐        ┌──────────────────────┐        ┌───────────────┐
-│  Claude / LLM   │◄─MCP──►│  MCP/U Client (TS)   │◄─────►│  MCU Firmware │
+│  Claude / LLM   │◄─MCP──►│  mcpu-client (npm)   │◄─────►│  MCU Firmware │
 │                 │  stdio │  Dynamic tool regist. │ Serial │  McpIot lib   │
 └─────────────────┘        └──────────────────────┘   /TCP └───────────────┘
 ```
@@ -72,21 +72,19 @@ void setup() {
 void loop() { mcp.loop(); }
 ```
   </TabItem>
-  <TabItem label="2 — Start Client">
+  <TabItem label="2 — Add to Claude Code">
 ```bash
-cd client
-npm install && npm run build
-DEVICES=esp32-01:/dev/ttyUSB0:115200 npm start
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
 ```
   </TabItem>
-  <TabItem label="3 — Add to Claude">
+  <TabItem label="3 — Claude Desktop config">
 ```json
 {
   "mcpServers": {
-    "mcu": {
-      "command": "node",
-      "args": ["/path/to/client/dist/index.js"],
-      "env": { "DEVICES": "esp32-01:/dev/ttyUSB0:115200" }
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": { "SERIAL_PORT": "/dev/ttyACM0" }
     }
   }
 }
@@ -106,7 +104,7 @@ Every device running MCP/U exposes these tools automatically:
 | `get_info` | Device name, version, platform |
 | `gpio_write` | Set digital output HIGH / LOW |
 | `gpio_read` | Read digital level |
-| `pwm_write` | PWM output (duty 0–255, freq Hz) |
+| `pwm_write` | PWM output (duty 0–255) |
 | `adc_read` | Read ADC value (0–4095) |
 
 ---
