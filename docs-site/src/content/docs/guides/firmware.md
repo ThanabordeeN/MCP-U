@@ -185,6 +185,43 @@ void loop() { mcp.loop(); }
 
 The recommended pattern for any sensor or peripheral is to wrap it in a custom tool. Your firmware handles all the hardware complexity — Claude sees only clean, named results.
 
+### PWM with Custom Frequency (LEDC)
+
+The built-in `pwm_write` tool uses `analogWrite(pin, duty)` with the default 5 kHz frequency — enough for LED dimming and most use cases.
+
+If you need a **custom frequency** (e.g. motor control, buzzer tone, servo), use the ESP32 LEDC API in a custom tool instead:
+
+```cpp
+#include <McpIot.h>
+
+McpDevice mcp("esp32-demo", "1.0.0");
+
+void handle_buzzer(int id, JsonObject params) {
+  int freq = params["freq"] | 1000;   // Hz
+  int duty = params["duty"] | 128;    // 0–255
+
+  ledcSetup(0, freq, 8);              // channel 0, 8-bit resolution
+  ledcAttachPin(5, 0);                // GPIO 5 → channel 0
+  ledcWrite(0, duty);
+
+  JsonDocument res;
+  res["result"]["freq"] = freq;
+  res["result"]["duty"] = duty;
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  mcp.add_tool("buzzer_tone", "Play a tone on the buzzer (freq Hz, duty 0-255)", handle_buzzer);
+  mcp.begin(Serial, 115200);
+}
+```
+
+:::note
+Use `ledcSetup` / `ledcAttachPin` / `ledcWrite` (ESP32 Arduino core pre-3.x) or `ledcAttach` / `ledcWrite` (core 3.x+).
+:::
+
+---
+
 ### BME280 (Temperature / Humidity / Pressure)
 
 ```cpp

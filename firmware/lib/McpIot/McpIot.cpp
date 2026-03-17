@@ -119,7 +119,7 @@ void McpDevice::_dispatch(const String& input) {
   if (req["jsonrpc"] != "2.0") { send_error(0, -32600, "Invalid request: jsonrpc must be '2.0'"); return; }
 
   // Notifications (no id) are silently ignored
-  if (!req.containsKey("id")) return;
+  if (!req["id"].is<int>()) return;
 
   int         id     = req["id"].as<int>();
   const char* method = req["method"];
@@ -203,8 +203,7 @@ void McpDevice::_handle_list_tools(int id) {
     JsonObject props = tmp.to<JsonObject>();
     props["pin"]["type"]  = "integer"; props["pin"]["description"]  = "GPIO pin number";
     props["duty"]["type"] = "integer"; props["duty"]["description"] = "Duty cycle 0–255";
-    props["freq"]["type"] = "integer"; props["freq"]["description"] = "Frequency in Hz";
-    add_builtin("pwm_write", "Write PWM signal to a pin", {"pin", "duty", "freq"}, props);
+    add_builtin("pwm_write", "Write PWM signal to a pin", {"pin", "duty"}, props);
   }
   // adc_read
   {
@@ -312,26 +311,21 @@ void McpDevice::_handle_gpio_read(int id, JsonObject params) {
 }
 
 void McpDevice::_handle_pwm_write(int id, JsonObject params) {
-  if (!params["pin"].is<int>() || !params["duty"].is<int>() || !params["freq"].is<int>()) {
-    send_error(id, -32602, "Required: pin (integer), duty (integer), freq (integer)"); return;
+  if (!params["pin"].is<int>() || !params["duty"].is<int>()) {
+    send_error(id, -32602, "Required: pin (integer), duty (integer 0-255)"); return;
   }
   PinEntry* cfg = _find_pin(params["pin"].as<int>());
   if (!cfg || cfg->type != MCP_PWM_OUTPUT) {
     send_error(id, -32602, "Pin not registered as pwm_output"); return;
   }
   int duty = params["duty"].as<int>();
-  int freq = params["freq"].as<int>();
 
-#if defined(ESP32)
-  analogWriteFrequency(cfg->pin, freq);
-#endif
   analogWrite(cfg->pin, duty);
 
   JsonDocument res;
   res["result"]["pin"]  = cfg->pin;
   res["result"]["name"] = cfg->name;
   res["result"]["duty"] = duty;
-  res["result"]["freq"] = freq;
   send_result(id, res);
 }
 
@@ -424,7 +418,7 @@ void McpDevice::_handle_i2c_read_reg(int id, JsonObject params) {
 
   JsonDocument res;
   JsonArray data = res["result"]["data"].to<JsonArray>();
-  char hex_buf[received * 3 + 1];
+  char hex_buf[32 * 3 + 1]; // max 32 bytes, each printed as "XX "
   uint8_t idx = 0;
 
   while (_wire->available()) {

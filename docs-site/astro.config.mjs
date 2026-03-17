@@ -3,10 +3,12 @@
 
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import vercel from '@astrojs/vercel';
 
 export default defineConfig({
-  site: 'https://ThanabordeeN.github.io',
-  base: '/mcpu',
+  site: 'https://mcpu-2edge.vercel.app',
+  output: 'static',
+  adapter: vercel(),
   integrations: [
     starlight({
       title: 'MCP/U',
@@ -29,6 +31,7 @@ export default defineConfig({
           items: [
             { label: 'Firmware (McpIot Library)', slug: 'guides/firmware' },
             { label: 'Client Setup', slug: 'guides/client' },
+            { label: 'CLI Agents', slug: 'guides/cli-agents' },
           ],
         },
         {
@@ -44,7 +47,7 @@ export default defineConfig({
       head: [
         {
           tag: 'meta',
-          attrs: { property: 'og:image', content: '/mcpu/og.png' },
+          attrs: { property: 'og:image', content: '/og.png' },
         },
       ],
     }),

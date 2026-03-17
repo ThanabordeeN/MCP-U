@@ -163,30 +163,6 @@ Discovery endpoint. Returns all tools with JSON Schema + pin registry.
 
 ---
 
-### `i2c_scan` *(requires `begin_i2c()`)*
-
-**Params:** none
-
-**Response:** `{ "devices": [60, 118], "count": 2 }`
-
----
-
-### `i2c_write_reg` *(requires `begin_i2c()`)*
-
-**Params:** `{ "address": <integer>, "reg": <integer>, "value": <integer> }`
-
-**Response:** `{ "address": 60, "reg": 0, "ok": true }`
-
----
-
-### `i2c_read_reg` *(requires `begin_i2c()`)*
-
-**Params:** `{ "address": <integer>, "reg": <integer>, "length": <integer> }`
-
-**Response:** `{ "address": 60, "reg": 0, "data": [0, 96, 0], "hex": "006000" }`
-
----
-
 ## Pin Types
 
 | Type string | Meaning | Valid operations |
