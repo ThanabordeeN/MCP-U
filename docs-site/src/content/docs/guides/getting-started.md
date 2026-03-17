@@ -8,7 +8,7 @@ description: Flash firmware, start the client, and connect Claude to your MCU in
 - ESP32 board (or any Arduino-compatible MCU)
 - [PlatformIO](https://platformio.org) or Arduino IDE
 - Node.js 18+
-- Claude Desktop (or any MCP-compatible host)
+- Claude Desktop or any MCP-compatible agent (Claude Code, Gemini CLI, etc.)
 
 ---
 
@@ -28,44 +28,41 @@ The default example exposes:
 - GPIO 2 — `led` (digital output)
 - GPIO 5 — `buzzer` (digital output)
 - GPIO 34 — `sensor` (ADC input)
-- Custom tool: `hello`
 
 ---
 
-## Step 2 — Start the MCP Client
+## Step 2 — Find your serial port
 
+**Linux:**
 ```bash
-cd client
-npm install
-npm run build
-DEVICES=esp32-01:/dev/ttyUSB0:115200 npm start
+ls /dev/ttyUSB* /dev/ttyACM*
 ```
 
-**Windows:**
-```cmd
-set DEVICES=esp32-01:COM3:115200 && npm start
+**macOS:**
+```bash
+ls /dev/tty.usbserial-*
 ```
 
-:::tip[Find your port]
-**Linux:** `ls /dev/ttyUSB* /dev/ttyACM*`
-**macOS:** `ls /dev/tty.usbserial-*`
 **Windows:** Device Manager → Ports (COM & LPT)
-:::
 
 ---
 
-## Step 3 — Add to Claude Desktop
+## Step 3 — Add to your AI agent
+
+The MCP/U client is published on npm — no local clone needed.
+
+### Claude Desktop
 
 **Linux / macOS** — `~/.config/claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "mcu": {
-      "command": "node",
-      "args": ["/absolute/path/to/client/dist/index.js"],
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
       "env": {
-        "DEVICES": "esp32-01:/dev/ttyUSB0:115200"
+        "SERIAL_PORT": "/dev/ttyACM0"
       }
     }
   }
@@ -77,28 +74,53 @@ set DEVICES=esp32-01:COM3:115200 && npm start
 ```json
 {
   "mcpServers": {
-    "mcu": {
-      "command": "node",
-      "args": ["C:\\path\\to\\client\\dist\\index.js"],
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
       "env": {
-        "DEVICES": "esp32-01:COM3:115200"
+        "SERIAL_PORT": "COM3"
       }
     }
   }
 }
 ```
 
-Restart Claude Desktop. You should now be able to ask Claude to control your MCU.
+### Claude Code (CLI)
+
+```bash
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+```
+
+### Gemini CLI
+
+```bash
+gemini mcp add mcpu npx mcpu-client
+```
+
+Then edit `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop / your agent. Claude can now control your MCU.
 
 ---
 
 ## Verify with MCP Inspector
 
-Before connecting Claude, test with the MCP Inspector:
-
 ```bash
-cd client
-npx @modelcontextprotocol/inspector node dist/index.js
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
 ```
 
 Open the browser URL shown and try calling `list_devices` or `gpio_write`.

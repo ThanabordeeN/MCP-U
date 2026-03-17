@@ -36,6 +36,15 @@ import type { DeviceConfig } from "./transport.js";
 // ---------------------------------------------------------------------------
 
 function load_devices(): DeviceConfig[] {
+  if (process.env.SERIAL_PORT) {
+    return [{
+      id: "esp32",
+      transport: "serial" as const,
+      port: process.env.SERIAL_PORT,
+      baud: Number(process.env.SERIAL_BAUD ?? 115200),
+    }];
+  }
+
   if (process.env.DEVICES) {
     return process.env.DEVICES.split(",").map((entry) => {
       const parts = entry.trim().split(":");
