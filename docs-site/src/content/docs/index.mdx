@@ -1,0 +1,126 @@
+---
+title: MCP/U
+description: The Unified Interface for AI-Ready Microcontrollers. Transform any Arduino MCU into an AI-ready device via the Model Context Protocol.
+template: splash
+hero:
+  tagline: Transform any Arduino-compatible MCU into an AI-ready device via the Model Context Protocol.
+  actions:
+    - text: Quick Start
+      link: /mcpu/guides/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: GitHub
+      link: https://github.com/ThanabordeeN/mcpu
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<div class="hero-badge">⚡ by 2edge.co · LGPL-3.0</div>
+
+## Why MCP/U?
+
+<CardGrid stagger>
+  <Card title="Self-Describing Firmware" icon="document">
+    Devices auto-declare their tools via JSON Schema. The client registers tools dynamically — zero hardcoded names.
+  </Card>
+  <Card title="Universal Transport" icon="random">
+    Serial, WiFi (TCP), and Bluetooth — one library, one API, any Arduino `Stream`.
+  </Card>
+  <Card title="Minimalist Integration" icon="pencil">
+    Just `add_pin()`, `add_tool()`, `begin()`. No protocol complexity in your sketch.
+  </Card>
+  <Card title="Multi-Device Ready" icon="laptop">
+    Connect any number of MCUs to a single MCP client. Tools auto-namespaced per device.
+  </Card>
+</CardGrid>
+
+---
+
+## How It Works
+
+```
+┌─────────────────┐        ┌──────────────────────┐        ┌───────────────┐
+│  Claude / LLM   │◄─MCP──►│  MCP/U Client (TS)   │◄─────►│  MCU Firmware │
+│                 │  stdio │  Dynamic tool regist. │ Serial │  McpIot lib   │
+└─────────────────┘        └──────────────────────┘   /TCP └───────────────┘
+```
+
+1. Client connects to MCU over Serial or TCP
+2. Calls `list_tools` — MCU responds with full tool + pin registry (JSON Schema)
+3. Client dynamically registers one MCP tool per MCU tool
+4. Claude can now call any MCU tool by name
+
+---
+
+## 3-Step Setup
+
+<Tabs>
+  <TabItem label="1 — Flash Firmware">
+```cpp
+#include <McpIot.h>
+
+McpDevice mcp("my-device", "1.0.0");
+
+void setup() {
+  mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Onboard LED");
+  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor");
+  mcp.begin(Serial, 115200);
+}
+
+void loop() { mcp.loop(); }
+```
+  </TabItem>
+  <TabItem label="2 — Start Client">
+```bash
+cd client
+npm install && npm run build
+DEVICES=esp32-01:/dev/ttyUSB0:115200 npm start
+```
+  </TabItem>
+  <TabItem label="3 — Add to Claude">
+```json
+{
+  "mcpServers": {
+    "mcu": {
+      "command": "node",
+      "args": ["/path/to/client/dist/index.js"],
+      "env": { "DEVICES": "esp32-01:/dev/ttyUSB0:115200" }
+    }
+  }
+}
+```
+  </TabItem>
+</Tabs>
+
+---
+
+## Built-in Tools
+
+Every device running MCP/U exposes these tools automatically:
+
+| Tool | Description |
+|------|-------------|
+| `list_tools` | Discovery: tools + pin registry |
+| `get_info` | Device name, version, platform |
+| `gpio_write` | Set digital output HIGH / LOW |
+| `gpio_read` | Read digital level |
+| `pwm_write` | PWM output (duty 0–255, freq Hz) |
+| `adc_read` | Read ADC value (0–4095) |
+| `i2c_scan` | Scan I2C bus *(requires `begin_i2c()`)* |
+| `i2c_write_reg` | Write byte to I2C register |
+| `i2c_read_reg` | Read N bytes from I2C register |
+
+---
+
+<CardGrid>
+  <Card title="Firmware Guide →" icon="open-book">
+    Install the McpIot library and learn the full API.
+    [Get started](/mcpu/guides/firmware/)
+  </Card>
+  <Card title="Client Guide →" icon="setting">
+    Set up the TypeScript MCP client and connect to Claude.
+    [Get started](/mcpu/guides/client/)
+  </Card>
+</CardGrid>

@@ -1,0 +1,35 @@
+/* MCP/U brand colors */
+:root {
+  --sl-color-accent-low: #0c1445;
+  --sl-color-accent: #2563eb;
+  --sl-color-accent-high: #93c5fd;
+  --sl-color-text-accent: #2563eb;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #1e3a8a;
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #bfdbfe;
+}
+
+/* Hero tagline size */
+.hero > .sl-flex > p {
+  font-size: var(--sl-text-xl);
+  max-width: 44ch;
+}
+
+/* Subtle badge style */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-text-accent);
+  background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 30%, transparent);
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
