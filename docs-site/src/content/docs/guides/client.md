@@ -1,37 +1,76 @@
 ---
 title: Client Setup
-description: Install and configure the MCP/U TypeScript client to connect Claude to your MCUs.
----
-
-## Requirements
-
-- Node.js 18+
-- TypeScript 5+ (included as dev dependency)
-
+description: Install and configure the MCP/U client to connect AI agents to your MCUs.
 ---
 
 ## Installation
 
+The client is published on npm — no local setup needed:
+
 ```bash
-cd client
-npm install
-npm run build
+npx mcpu-client
 ```
+
+Or install globally:
+
+```bash
+npm install -g mcpu-client
+```
+
+---
+
+## Environment Variables
+
+All configuration is done via environment variables. Priority order: `SERIAL_PORT` → `DEVICES` → `devices.json`
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `SERIAL_PORT` | Serial port for a single device | — | `/dev/ttyACM0`, `COM3` |
+| `SERIAL_BAUD` | Baud rate (used with `SERIAL_PORT`) | `115200` | `9600` |
+| `DEVICES` | Multi-device config string (see format below) | — | `esp32:/dev/ttyUSB0:115200` |
 
 ---
 
 ## Configuration
 
-### Option 1 — `devices.json`
+### Option 1 — `SERIAL_PORT` (recommended for single device)
 
-Edit `client/devices.json`:
+Set one environment variable — the client handles the rest.
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx mcpu-client
+```
+
+Custom baud rate:
+```bash
+SERIAL_PORT=/dev/ttyACM0 SERIAL_BAUD=9600 npx mcpu-client
+```
+
+### Option 2 — `DEVICES` (multi-device or TCP)
+
+Format: `id:port:baud` (serial) or `id:host:port:tcp` (TCP), comma-separated.
+
+```bash
+# Single serial device
+DEVICES=esp32-01:/dev/ttyUSB0:115200 npx mcpu-client
+
+# Multiple devices
+DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npx mcpu-client
+
+# Windows
+set DEVICES=esp32-01:COM3:115200 && npx mcpu-client
+```
+
+### Option 3 — `devices.json`
+
+When running locally (cloned repo), create `client/devices.json`:
 
 ```json
 [
   {
     "id": "esp32-01",
     "transport": "serial",
-    "port": "/dev/ttyUSB0",
+    "port": "/dev/ttyACM0",
     "baud": 115200
   },
   {
@@ -43,67 +82,38 @@ Edit `client/devices.json`:
 ]
 ```
 
-### Option 2 — `DEVICES` environment variable
-
-Format: `id:port:baud` (serial) or `id:host:port:tcp` (TCP), comma-separated.
-
-```bash
-# Single serial device
-DEVICES=esp32-01:/dev/ttyUSB0:115200 npm start
-
-# Multiple devices
-DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npm start
-
-# Windows
-set DEVICES=esp32-01:COM3:115200 && npm start
-```
-
----
-
-## Running
-
-```bash
-# Production
-npm start
-
-# Development (no compile step)
-npm run dev
-```
+Priority: `SERIAL_PORT` → `DEVICES` → `devices.json`
 
 ---
 
 ## Claude Desktop Integration
 
-### Linux / macOS
-
-`~/.config/claude/claude_desktop_config.json`:
+**Linux / macOS** — `~/.config/claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "mcu": {
-      "command": "node",
-      "args": ["/home/user/mcpu/client/dist/index.js"],
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
       "env": {
-        "DEVICES": "esp32-01:/dev/ttyUSB0:115200"
+        "SERIAL_PORT": "/dev/ttyACM0"
       }
     }
   }
 }
 ```
 
-### Windows (CMD)
-
-`%APPDATA%\Claude\claude_desktop_config.json`:
+**Windows** — `%APPDATA%\Claude\claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "mcu": {
-      "command": "cmd",
-      "args": ["/c", "node", "C:\\Users\\YourName\\mcpu\\client\\dist\\index.js"],
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
       "env": {
-        "DEVICES": "esp32-01:COM3:115200"
+        "SERIAL_PORT": "COM3"
       }
     }
   }
@@ -112,16 +122,40 @@ npm run dev
 
 ---
 
-## Testing with MCP Inspector
+## Claude Code (CLI)
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
 ```
 
-Open the browser URL shown. You can:
-- Browse dynamically discovered tools
-- Call `list_devices` to see connected MCUs
-- Call `gpio_write` / `gpio_read` interactively
+Verify:
+```bash
+claude mcp list
+```
+
+---
+
+## Gemini CLI
+
+```bash
+gemini mcp add mcpu npx mcpu-client
+```
+
+Then add `env` in `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
 
 ---
 
@@ -147,6 +181,19 @@ sudo usermod -aG dialout $USER
 
 ---
 
+## Testing with MCP Inspector
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+Open the browser URL shown. You can:
+- Browse dynamically discovered tools
+- Call `list_devices` to see connected MCUs
+- Call `gpio_write` / `gpio_read` interactively
+
+---
+
 ## Dynamic Tool Discovery
 
 The client has **zero hardcoded tool names**. On startup:
@@ -168,8 +215,6 @@ Adding a new tool to firmware = the MCP tool appears automatically on next clien
 ---
 
 ## Multi-Device Setup
-
-`client/devices.json`:
 
 ```json
 [

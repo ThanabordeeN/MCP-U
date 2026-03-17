@@ -1,63 +1,73 @@
 ---
 title: Connecting to CLI Agents
-description: Add your MCP/U device server to Claude Code, Gemini CLI, OpenCode, and other terminal AI agents.
+description: Add MCP/U to Claude Code, Gemini CLI, and OpenCode using the correct config for each tool.
 ---
 
-Once your MCP/U client is running, connect it to any MCP-compatible CLI agent using the commands below.
+Once your MCP/U client is running, connect it to any MCP-compatible CLI agent.
 
 ---
 
 ## Claude Code
 
-[Claude Code](https://code.claude.com/docs/en/mcp) (by Anthropic) connects to MCP servers directly from the terminal.
+**Official docs**: [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp)
 
-### Add via command
-
-```bash
-# Local stdio server
-claude mcp add mcpu -- node /path/to/client/dist/index.js
-
-# Remote HTTP server
-claude mcp add --transport http mcpu http://localhost:3000
-```
-
-### Add via JSON config
+### Add via CLI (recommended)
 
 ```bash
-claude mcp add-json mcpu '{
-  "command": "node",
-  "args": ["/path/to/client/dist/index.js"],
-  "env": { "SERIAL_PORT": "/dev/ttyUSB0" }
-}'
+claude mcp add -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
 ```
 
-### Verify
+All flags must come **before** the server name. The `--` separator isolates the MCP command.
 
-Run `/mcp` inside a Claude Code session to see active servers and their tools.
+### Or edit `.mcp.json` (shared with team)
 
----
-
-## Gemini CLI
-
-[Gemini CLI](https://docs.cloud.google.com/gemini/docs/codeassist/gemini-cli) supports MCP for tool-augmented tasks.
-
-### Add via command
-
-```bash
-gemini mcp add mcpu node /path/to/client/dist/index.js
-```
-
-### Add via config file
-
-Edit `.gemini/settings.json` (or `settings.json` in your project root):
+Create `.mcp.json` in your project root:
 
 ```json
 {
   "mcpServers": {
     "mcpu": {
-      "command": "node",
-      "args": ["/path/to/client/dist/index.js"],
-      "env": { "SERIAL_PORT": "/dev/ttyUSB0" }
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+### Verify
+
+```bash
+claude mcp list
+```
+
+Or inside a Claude Code session: `/mcp`
+
+---
+
+## Gemini CLI
+
+**Official docs**: [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
+
+### Add via CLI
+
+```bash
+gemini mcp add mcpu --command "npx mcpu-client"
+```
+
+Then add the `env` field in `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
     }
   }
 }
@@ -67,38 +77,37 @@ Edit `.gemini/settings.json` (or `settings.json` in your project root):
 
 ```bash
 gemini mcp list
-# or type /mcp inside a Gemini CLI session
 ```
+
+Or inside a session: `/mcp`
 
 ---
 
 ## OpenCode
 
-[OpenCode](https://opencode.ai) is an open-source terminal agent with native MCP support.
+**Official docs**: [opencode.ai/docs/mcp-servers](https://opencode.ai/docs/mcp-servers/)
 
-### Add via command
+OpenCode has no CLI add command — edit `opencode.json` directly.
 
-```bash
-opencode mcp add
-# Interactive prompt guides you through local or remote setup
-```
-
-### Add via config file
-
-Edit `opencode.jsonc` in your project root:
-
-```jsonc
+```json
 {
+  "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
       "enabled": true,
-      "command": "node",
-      "args": ["/path/to/client/dist/index.js"],
-      "env": { "SERIAL_PORT": "/dev/ttyUSB0" }
+      "environment": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
     }
   }
 }
 ```
+
+:::note
+OpenCode uses `"environment"` (not `"env"`) and `"command"` must be an **array**.
+:::
 
 ### Verify
 
@@ -108,7 +117,19 @@ opencode mcp list
 
 ---
 
-## Finding the right `SERIAL_PORT`
+## Summary
+
+| | Claude Code | Gemini CLI | OpenCode |
+|--|-------------|------------|----------|
+| **Add command** | `claude mcp add -e KEY=VAL -- npx mcpu-client` | `gemini mcp add mcpu --command "npx mcpu-client"` | manual config only |
+| **Config file** | `.mcp.json` (project) | `~/.gemini/settings.json` | `opencode.json` |
+| **Env field** | `"env"` | `"env"` | `"environment"` |
+| **Command format** | string | string | array |
+| **Verify** | `claude mcp list` / `/mcp` | `gemini mcp list` / `/mcp` | `opencode mcp list` |
+
+---
+
+## Finding your serial port
 
 | OS | Typical port |
 |----|-------------|
@@ -116,4 +137,9 @@ opencode mcp list
 | macOS | `/dev/cu.usbserial-*` |
 | Windows | `COM3`, `COM4`, … |
 
-Use `ls /dev/tty*` (Linux/macOS) or Device Manager (Windows) to find your port.
+```bash
+# Linux / macOS
+ls /dev/tty*
+```
+
+**Windows**: Device Manager → Ports (COM & LPT)
