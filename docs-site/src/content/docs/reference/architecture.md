@@ -37,7 +37,7 @@ description: System architecture, data flow, and design rationale for MCP/U.
 
 - Listens on any Arduino `Stream` for newline-delimited JSON-RPC requests
 - Maintains a pin registry (type, name, description)
-- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`, I2C tools)
+- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`)
 - Dispatches to user-registered custom tools
 - Sends `list_tools` discovery response with full JSON Schema for all tools
 
