@@ -26,3 +26,4 @@ docs-site/dist/
 .env
 .env.*
 docs-site/.astro/data-store.json
+docs-site/.vercel/
