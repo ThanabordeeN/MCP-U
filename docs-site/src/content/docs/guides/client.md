@@ -67,7 +67,7 @@ With multiple devices, tools are prefixed: `robot__gpio_write`, `display__gpio_w
 
 ## Claude Desktop Integration
 
-**Linux / macOS** — `~/.config/claude/claude_desktop_config.json`:
+**Serial — Linux / macOS** (`~/.config/claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -83,22 +83,7 @@ With multiple devices, tools are prefixed: `robot__gpio_write`, `display__gpio_w
 }
 ```
 
-Multi-device:
-```json
-{
-  "mcpServers": {
-    "mcpu": {
-      "command": "npx",
-      "args": ["mcpu-client"],
-      "env": {
-        "DEVICES": "robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200"
-      }
-    }
-  }
-}
-```
-
-**Windows** — `%APPDATA%\Claude\claude_desktop_config.json`:
+**Serial — Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
 
 ```json
 {
@@ -114,23 +99,7 @@ Multi-device:
 }
 ```
 
----
-
-## Claude Code (CLI)
-
-```bash
-# Single device
-claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
-
-# Multiple devices
-claude mcp add mcpu -e DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 -- npx mcpu-client
-```
-
----
-
-## Gemini CLI
-
-Edit `~/.gemini/settings.json`:
+**WiFi TCP** (replace IP with the one your ESP32 printed to Serial Monitor):
 
 ```json
 {
@@ -139,7 +108,78 @@ Edit `~/.gemini/settings.json`:
       "command": "npx",
       "args": ["mcpu-client"],
       "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+**Mixed — Serial + WiFi TCP:**
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Claude Code (CLI)
+
+**Serial:**
+```bash
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+```
+
+**WiFi TCP:**
+```bash
+claude mcp add mcpu -e DEVICES=mydevice:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+
+**Multiple devices:**
+```bash
+claude mcp add mcpu -e DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+
+---
+
+## Gemini CLI
+
+Edit `~/.gemini/settings.json`:
+
+**Serial:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
         "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+**WiFi TCP:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
       }
     }
   }

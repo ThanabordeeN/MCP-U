@@ -12,9 +12,24 @@ description: Flash firmware, start the client, and connect Claude to your MCU in
 
 ---
 
-## Step 1 — Flash Firmware
+## Step 1 — Choose a Transport
 
-Clone the repo and flash the example firmware:
+MCP/U supports two transports. Pick one based on your setup:
+
+| | Serial (USB) | WiFi TCP |
+|-|:---:|:---:|
+| Cable required | Yes | No |
+| Board support | All | ESP32 / ESP8266 |
+| Setup complexity | Minimal | Needs SSID + password |
+| Use case | Development | Deployment / wireless |
+
+---
+
+## Step 2 — Flash Firmware
+
+Clone the repo and flash the matching example:
+
+### Serial
 
 ```bash
 git clone https://github.com/ThanabordeeN/mcpu
@@ -29,9 +44,31 @@ The default example exposes:
 - GPIO 5 — `buzzer` (digital output)
 - GPIO 34 — `sensor` (ADC input)
 
+### WiFi TCP
+
+Edit the credentials at the top of the sketch before uploading:
+
+```cpp
+static const char*    WIFI_SSID     = "YOUR_SSID";
+static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
+static const uint16_t TCP_PORT      = 3000;
+```
+
+After flashing, open the Serial Monitor — the ESP32 prints its IP address on boot:
+
+```
+Connecting to WiFi....
+IP: 192.168.1.42
+TCP server listening on port 3000
+```
+
+Note that IP — you'll need it in Step 4.
+
 ---
 
-## Step 2 — Find your serial port
+## Step 3 — Find your serial port
+
+*(Skip this step if you're using WiFi TCP.)*
 
 **Linux:**
 ```bash
@@ -47,13 +84,13 @@ ls /dev/tty.usbserial-*
 
 ---
 
-## Step 3 — Add to your AI agent
+## Step 4 — Add to your AI agent
 
 The MCP/U client is published on npm — no local clone needed.
 
 ### Claude Desktop
 
-**Linux / macOS** — `~/.config/claude/claude_desktop_config.json`:
+**Serial — Linux / macOS** (`~/.config/claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -69,22 +106,7 @@ The MCP/U client is published on npm — no local clone needed.
 }
 ```
 
-Multiple devices:
-```json
-{
-  "mcpServers": {
-    "mcpu": {
-      "command": "npx",
-      "args": ["mcpu-client"],
-      "env": {
-        "DEVICES": "robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200"
-      }
-    }
-  }
-}
-```
-
-**Windows** — `%APPDATA%\Claude\claude_desktop_config.json`:
+**Serial — Windows** (`%APPDATA%\Claude\claude_desktop_config.json`):
 
 ```json
 {
@@ -100,19 +122,7 @@ Multiple devices:
 }
 ```
 
-### Claude Code (CLI)
-
-```bash
-# Single device
-claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
-
-# Multiple devices
-claude mcp add mcpu -e DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 -- npx mcpu-client
-```
-
-### Gemini CLI
-
-Edit `~/.gemini/settings.json`:
+**WiFi TCP** (replace IP with the one printed by your ESP32):
 
 ```json
 {
@@ -121,16 +131,77 @@ Edit `~/.gemini/settings.json`:
       "command": "npx",
       "args": ["mcpu-client"],
       "env": {
-        "SERIAL_PORT": "/dev/ttyACM0"
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
       }
     }
   }
 }
 ```
 
+Multiple devices (mix Serial and TCP freely):
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+---
+
+### Claude Code (CLI)
+
+```bash
+# Serial
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+
+# WiFi TCP
+claude mcp add mcpu -e DEVICES=mydevice:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+
+---
+
+### Gemini CLI
+
+Edit `~/.gemini/settings.json`:
+
+**Serial:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": { "SERIAL_PORT": "/dev/ttyACM0" }
+    }
+  }
+}
+```
+
+**WiFi TCP:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": { "DEVICES": "mydevice:192.168.1.42:3000:tcp" }
+    }
+  }
+}
+```
+
+---
+
 ### OpenCode
 
-`opencode.json`:
+`opencode.json` — Serial:
 
 ```json
 {
@@ -140,12 +211,16 @@ Edit `~/.gemini/settings.json`:
       "type": "local",
       "command": ["npx", "mcpu-client"],
       "enabled": true,
-      "environment": {
-        "SERIAL_PORT": "/dev/ttyACM0"
-      }
+      "environment": { "SERIAL_PORT": "/dev/ttyACM0" }
     }
   }
 }
+```
+
+WiFi TCP — replace `SERIAL_PORT` with `DEVICES`:
+
+```json
+"environment": { "DEVICES": "mydevice:192.168.1.42:3000:tcp" }
 ```
 
 Restart your agent. Claude can now control your MCU.

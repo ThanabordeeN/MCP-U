@@ -155,7 +155,11 @@ build_flags =
 
 ---
 
-## Full Example
+## Examples
+
+### Serial (USB)
+
+The simplest transport — plug in a USB cable and go. Works on every Arduino-compatible board.
 
 ```cpp
 #include <McpIot.h>
@@ -178,6 +182,61 @@ void setup() {
 
 void loop() { mcp.loop(); }
 ```
+
+---
+
+### WiFi TCP (ESP32 / ESP8266)
+
+No USB cable required — the MCU acts as a TCP server on your local network. The client connects by IP address and port.
+
+```cpp
+#include <WiFi.h>
+#include <McpIot.h>
+
+static const char*    WIFI_SSID     = "YOUR_SSID";
+static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
+static const uint16_t TCP_PORT      = 3000;
+
+McpDevice  mcp("esp32-wifi", "1.0.0");
+WiFiServer server(TCP_PORT);
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+
+  mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Onboard LED");
+  mcp.add_pin(5,  "buzzer", MCP_DIGITAL_OUTPUT, "Piezo Buzzer");
+  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor");
+
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());   // note this IP for the client
+
+  server.begin();
+}
+
+void loop() {
+  // Accept new client if none is connected
+  if (!client || !client.connected()) {
+    WiFiClient incoming = server.accept();
+    if (incoming) {
+      client = incoming;
+      mcp.begin(client);   // swap the MCP stream to the TCP connection
+    }
+  }
+  mcp.loop();
+}
+```
+
+:::tip
+Open the Arduino Serial Monitor after flashing — the ESP32 prints its IP address on boot. Use that IP when configuring the client. See the [Client Guide](/mcpu/guides/client/) and [CLI Agents Guide](/mcpu/guides/cli-agents/) for full connection examples.
+:::
 
 ---
 
