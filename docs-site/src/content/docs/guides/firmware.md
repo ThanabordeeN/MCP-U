@@ -18,7 +18,7 @@ lib_deps =
 
 ### Arduino IDE
 
-1. Download this repo as a ZIP
+1. [Download as ZIP](https://github.com/ThanabordeeN/MCP-U_Arduino/archive/refs/heads/main.zip)
 2. **Sketch → Include Library → Add .ZIP Library**
 3. Select the ZIP
 4. `#include <McpIot.h>` in your sketch
