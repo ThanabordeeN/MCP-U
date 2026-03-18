@@ -11,6 +11,9 @@ export default defineConfig({
   adapter: vercel(),
   integrations: [
     starlight({
+      components: {
+        Head: './src/components/Head.astro',
+      },
       title: 'MCP/U',
       description: 'The Unified Interface for AI-Ready Microcontrollers — by 2edge.co',
       social: [
