@@ -3,7 +3,7 @@ title: Compatibility
 description: Supported boards, platforms, Node.js versions, and known limitations.
 ---
 
-## Firmware — McpIot Library
+## Firmware — MCP-U Library
 
 ### Supported Boards
 
@@ -42,11 +42,10 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 - Serial only ✅
 - No WiFi or Bluetooth ❌
 - PWM only on specific pins (3, 5, 6, 9, 10, 11 on Uno) ⚠️
-- Limited RAM — lower limits recommended ⚠️
-```cpp
-#define MCP_MAX_PINS  8
-#define MCP_MAX_TOOLS 8
-```
+- Limited RAM — tighter defaults auto-configured ⚠️
+  - `MCP_MAX_PINS=8`, `MCP_MAX_TOOLS=8`, `MCP_SERIAL_BUFFER=256` set automatically for AVR
+  - Override with build flags if needed: `-DMCP_MAX_PINS=4`
+- `adc_read` returns `mv` (integer millivolts) instead of `volts` on AVR ⚠️
 - ArduinoJson v7 requires at least 2KB SRAM — Uno is very tight ⚠️
 
 ---

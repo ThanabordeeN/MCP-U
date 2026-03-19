@@ -48,7 +48,7 @@ Requests without `id` are treated as notifications and receive no response.
 
 **Error:**
 ```json
-{"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Required: pin (integer), value (boolean)"}}
+{"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Bad params"}}
 ```
 
 ---
@@ -161,7 +161,13 @@ Uses `analogWrite` — default 5 kHz. For custom frequency use a [custom LEDC to
 
 **Params:** `{ "pin": <integer> }`
 
-**Response:** `{ "pin": 34, "name": "sensor", "value": 2048, "volts": 1.65 }`
+**Response (ESP32 / ESP8266):** `{ "pin": 34, "name": "sensor", "value": 2048, "volts": 1.65 }`
+
+**Response (AVR — Uno/Mega/Nano):** `{ "pin": 0, "name": "sensor", "value": 512, "mv": 1651 }`
+
+:::note[AVR note]
+On AVR boards the ADC is 10-bit (0–1023) and voltage is returned as integer millivolts in `mv` instead of `volts`, avoiding the softfloat library.
+:::
 
 ---
 

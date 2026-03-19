@@ -43,7 +43,7 @@ import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
 ```
 ┌─────────────────┐        ┌──────────────────────┐        ┌───────────────┐
 │  Claude / LLM   │◄─MCP──►│  mcpu-client (npm)   │◄─────►│  MCU Firmware │
-│                 │  stdio │  Dynamic tool regist. │ Serial │  McpIot lib   │
+│                 │  stdio │  Dynamic tool regist. │ Serial │  MCP-U lib   │
 └─────────────────┘        └──────────────────────┘   /TCP └───────────────┘
 ```
 
@@ -59,7 +59,7 @@ import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
 <Tabs>
   <TabItem label="1 — Flash Firmware">
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 
 McpDevice mcp("my-device", "1.0.0");
 
@@ -105,13 +105,13 @@ Every device running MCP/U exposes these tools automatically:
 | `gpio_write` | Set digital output HIGH / LOW |
 | `gpio_read` | Read digital level |
 | `pwm_write` | PWM output (duty 0–255) |
-| `adc_read` | Read ADC value (0–4095) |
+| `adc_read` | Read ADC value (`volts` on ESP32, `mv` on AVR) |
 
 ---
 
 <CardGrid>
   <Card title="Firmware Guide →" icon="open-book">
-    Install the McpIot library and learn the full API.
+    Install the MCP-U library and learn the full API.
     [Get started](/guides/firmware/)
   </Card>
   <Card title="Client Guide →" icon="setting">
