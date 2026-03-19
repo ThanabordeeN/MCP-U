@@ -10,7 +10,7 @@
  * Transport: Serial (USB-UART) at 115200 baud
  */
 
-#include <McpIot.h>
+#include <MCP-U.h>
 
 McpDevice mcp("esp32-demo", "1.0.0");
 
