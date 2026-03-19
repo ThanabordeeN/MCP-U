@@ -1,6 +1,6 @@
 ---
 title: Firmware Guide
-description: Install the McpIot library and learn the complete API for making your MCU AI-ready.
+description: Install the MCP-U library and learn the complete API for making your MCU AI-ready.
 ---
 
 ## Installation
@@ -13,15 +13,14 @@ For standalone use, add to `platformio.ini`:
 ```ini
 lib_deps =
   bblanchon/ArduinoJson @ ^7
-  ; path to McpIot (local or GitHub)
+  original2547/McpIot @ ^1.1.0
 ```
 
 ### Arduino IDE
 
-1. [Download as ZIP](https://github.com/ThanabordeeN/MCP-U_Arduino/archive/refs/heads/main.zip)
-2. **Sketch → Include Library → Add .ZIP Library**
-3. Select the ZIP
-4. `#include <McpIot.h>` in your sketch
+1. **Sketch → Include Library → Manage Libraries** → search `McpIot` → Install
+2. Or [Download as ZIP](https://github.com/ThanabordeeN/MCP-U_Arduino/archive/refs/heads/main.zip) → **Sketch → Include Library → Add .ZIP Library**
+3. `#include <MCP-U.h>` in your sketch
 
 ---
 
@@ -147,11 +146,13 @@ build_flags =
   -DMCP_SERIAL_BUFFER=1024
 ```
 
-| Constant | Default | Description |
-|----------|---------|-------------|
-| `MCP_MAX_PINS` | 16 | Max registered pins |
-| `MCP_MAX_TOOLS` | 24 | Max registered tools |
-| `MCP_SERIAL_BUFFER` | 512 | Serial read buffer (bytes) |
+| Constant | AVR default | ESP32 default | Description |
+|----------|:-----------:|:-------------:|-------------|
+| `MCP_MAX_PINS` | 8 | 16 | Max registered pins |
+| `MCP_MAX_TOOLS` | 8 | 24 | Max registered tools |
+| `MCP_SERIAL_BUFFER` | 256 B | 512 B | Serial read buffer |
+
+Defaults are selected automatically based on architecture — no config needed for typical use.
 
 ---
 
@@ -162,7 +163,7 @@ build_flags =
 The simplest transport — plug in a USB cable and go. Works on every Arduino-compatible board.
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 
 McpDevice mcp("esp32-demo", "1.0.0");
 
@@ -191,7 +192,7 @@ No USB cable required — the MCU acts as a TCP server on your local network. Th
 
 ```cpp
 #include <WiFi.h>
-#include <McpIot.h>
+#include <MCP-U.h>
 
 static const char*    WIFI_SSID     = "YOUR_SSID";
 static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
@@ -251,7 +252,7 @@ The built-in `pwm_write` tool uses `analogWrite(pin, duty)` with the default 5 k
 If you need a **custom frequency** (e.g. motor control, buzzer tone, servo), use the ESP32 LEDC API in a custom tool instead:
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 
 McpDevice mcp("esp32-demo", "1.0.0");
 
@@ -284,7 +285,7 @@ Use `ledcSetup` / `ledcAttachPin` / `ledcWrite` (ESP32 Arduino core pre-3.x) or 
 ### BME280 (Temperature / Humidity / Pressure)
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 #include <Adafruit_BME280.h>
 
 McpDevice mcp("weather-node", "1.0.0");
@@ -308,7 +309,7 @@ void setup() {
 ### SSD1306 OLED Display
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 #include <Adafruit_SSD1306.h>
 
 McpDevice mcp("display-node", "1.0.0");
@@ -336,7 +337,7 @@ void setup() {
 ### MPU6050 (Gyroscope / Accelerometer)
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 #include <MPU6050_light.h>
 
 McpDevice mcp("motion-node", "1.0.0");
@@ -362,7 +363,7 @@ void setup() {
 ### LCD 16x4 (I2C)
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 #include <LiquidCrystal_I2C.h>
 
 McpDevice mcp("lcd-node", "1.0.0");

@@ -239,6 +239,6 @@ Open the browser URL shown and try calling `list_devices` or `gpio_write`.
 
 ## Next Steps
 
-- [Firmware Guide](/mcpu/guides/firmware/) — full `McpIot` API reference
+- [Firmware Guide](/mcpu/guides/firmware/) — full `MCP-U` API reference
 - [Client Guide](/mcpu/guides/client/) — multi-device setup, TCP transport
 - [Protocol Spec](/mcpu/reference/protocol/) — JSON-RPC wire format

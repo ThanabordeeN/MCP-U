@@ -24,7 +24,7 @@ description: System architecture, data flow, and design rationale for MCP/U.
         ▼                       ▼
 ┌───────────────┐     ┌─────────────────┐
 │ ESP32 #1      │     │ ESP32 #2 (WiFi) │
-│ McpIot lib    │     │ McpIot lib      │
+│ MCP-U lib    │     │ MCP-U lib      │
 │ GPIO 2, 5, 34 │     │ GPIO 2, 13, 36  │
 └───────────────┘     └─────────────────┘
 ```
@@ -33,7 +33,7 @@ description: System architecture, data flow, and design rationale for MCP/U.
 
 ## Component Responsibilities
 
-### Firmware (`McpIot` library)
+### Firmware (`MCP-U` library)
 
 - Listens on any Arduino `Stream` for newline-delimited JSON-RPC requests
 - Maintains a pin registry (type, name, description)
