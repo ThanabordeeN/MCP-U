@@ -155,6 +155,52 @@ Discovery endpoint. Returns all tools with JSON Schema + pin registry.
 
 ---
 
+### `get_pin_summary`
+
+Available when at least one input pin has summary sampling enabled via
+`McpBuffered`, `McpSummaryOnly`, or `McpThreshold`.
+
+**Params:** `{ "pin": "<name>" }` or `{ "pin": <integer> }`
+
+**Response:** `{ "pin": 34, "name": "light", "latest": 812, "min": 120, "max": 980, "avg": 531.4, "samples": 42 }`
+
+---
+
+### `get_pin_buffer`
+
+Available when at least one input pin has a ring buffer enabled via `McpBuffered`.
+
+**Params:** `{ "pin": "<name>", "limit": <integer> }`
+
+`limit` is optional. If omitted, the firmware returns the available buffer count
+up to the platform default response size on AVR.
+
+**Response:** `{ "pin": "light", "count": 20, "values": [402, 418, 421, 430] }`
+
+If the pin has no buffer, the response is successful but reports why data is not
+available:
+
+```json
+{
+  "pin": "light",
+  "buffer_available": false,
+  "reason": "Buffer disabled on this platform or pin. Use get_pin_summary instead."
+}
+```
+
+---
+
+### `get_pin_events`
+
+Available when at least one input pin has threshold events enabled via
+`McpThreshold`.
+
+**Params:** `{ "pin": "<name>" }` or `{ "pin": <integer> }`
+
+**Response:** `{ "pin": "temperature", "events": [{ "type": "threshold_high", "value": 38.2, "threshold": 35 }] }`
+
+---
+
 ## Pin Types
 
 | Type string       | Meaning                     | Valid operations              |

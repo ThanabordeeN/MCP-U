@@ -54,6 +54,31 @@ mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Light Sensor");
 
 ---
 
+### `add_pin(..., options)`
+
+Register a pin with sampling, rolling statistics, buffer, or threshold-event behavior.
+Options are only meaningful for input pins (`MCP_DIGITAL_INPUT`, `MCP_ADC_INPUT`).
+Output pins automatically ignore sampling options.
+
+```cpp
+mcp.add_pin(
+  34,
+  "light",
+  MCP_ADC_INPUT,
+  "Light sensor",
+  McpBuffered(20, 500)  // keep 20 samples, sample every 500 ms
+);
+```
+
+| Helper | Enables | Parameters |
+|--------|---------|------------|
+| `McpBuffered(bufferSize, intervalMs)` | summary + ring buffer | buffer size, sample interval |
+| `McpSummaryOnly(intervalMs)` | rolling statistics only | sample interval |
+| `McpThreshold(minValue, maxValue, intervalMs)` | summary + threshold events | min, max, sample interval |
+| `McpOutputSafe(approvalRequired)` | output safety metadata | approval flag |
+
+---
+
 ### `add_tool(name, description, handler)`
 
 Register a custom RPC tool. Call before `begin()`.
@@ -135,6 +160,76 @@ Standard codes: `-32700` parse error · `-32600` invalid request · `-32601` not
 
 ---
 
+## Sampling Tools
+
+When a pin is registered with `McpBuffered`, `McpSummaryOnly`, or `McpThreshold`,
+MCP-U samples it from `loop()` and exposes additional built-in tools.
+
+### `get_pin_summary`
+
+Returns rolling statistics for a sampled pin.
+
+**Params:** `{ "pin": "<name>" }` or `{ "pin": <gpio> }`
+
+```json
+{
+  "pin": 34,
+  "name": "light",
+  "latest": 812,
+  "min": 120,
+  "max": 980,
+  "avg": 531.4,
+  "samples": 42
+}
+```
+
+### `get_pin_buffer`
+
+Returns recent samples from a ring buffer. `limit` is optional.
+
+**Params:** `{ "pin": "<name>", "limit": 10 }`
+
+```json
+{
+  "pin": "light",
+  "count": 20,
+  "values": [402, 418, 421, 430]
+}
+```
+
+If buffering is not available for a pin:
+
+```json
+{
+  "pin": "light",
+  "buffer_available": false,
+  "reason": "Buffer disabled on this platform or pin. Use get_pin_summary instead."
+}
+```
+
+### `get_pin_events`
+
+Reports the current threshold state for pins registered with `McpThreshold`.
+
+**Params:** `{ "pin": "<name>" }`
+
+```json
+{
+  "pin": "temperature",
+  "events": [
+    { "type": "threshold_high", "value": 38.2, "threshold": 35 }
+  ]
+}
+```
+
+:::note
+On AVR builds, `list_tools` omits JSON schemas to save heap. The `mcpu-client`
+adds fallback schemas for built-in tools so `pin` and `limit` arguments still
+reach the MCU.
+:::
+
+---
+
 ## Limits
 
 Override via build flags in `platformio.ini`:
@@ -151,6 +246,9 @@ build_flags =
 | `MCP_MAX_PINS` | 8 | 16 | Max registered pins |
 | `MCP_MAX_TOOLS` | 8 | 24 | Max registered tools |
 | `MCP_SERIAL_BUFFER` | 256 B | 512 B | Serial read buffer |
+| `MCP_MAX_BUFFERED_PINS` | 2 | 8 | Max pins with ring buffers |
+| `MCP_MAX_BUFFER_SIZE` | 20 | 300 | Max samples per ring buffer |
+| `MCP_DEFAULT_BUFFER_SIZE` | 10 | 120 | Default buffer size |
 
 Defaults are selected automatically based on architecture — no config needed for typical use.
 
