@@ -5,3 +5,9 @@ import Analytics from '@vercel/analytics/astro';
 
 <Default {...Astro.props}><slot /></Default>
 <Analytics />
+
+<style is:inline>
+  /* Prevent white flash before CSS loads during navigation */
+  html { background-color: #111827; }
+  html[data-theme='light'] { background-color: #f9fafb; }
+</style>
