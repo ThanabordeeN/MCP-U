@@ -11,10 +11,15 @@ export default defineConfig({
   adapter: vercel(),
   redirects: {
     '/guides/getting-started': '/tutorials/getting-started',
+    '/guides/getting-started/': '/tutorials/getting-started/',
     '/guides/firmware': '/reference/firmware-api',
+    '/guides/firmware/': '/reference/firmware-api/',
     '/guides/client': '/how-to/configure-agent',
+    '/guides/client/': '/how-to/configure-agent/',
     '/guides/cli-agents': '/how-to/configure-agent',
+    '/guides/cli-agents/': '/how-to/configure-agent/',
     '/reference/architecture': '/explanation/architecture',
+    '/reference/architecture/': '/explanation/architecture/',
   },
   integrations: [
     starlight({
