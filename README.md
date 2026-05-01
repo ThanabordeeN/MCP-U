@@ -109,7 +109,7 @@ McpDevice mcp("my-device", "1.0.0");
 
 void setup() {
   mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Status LED");
-  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor");
+  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor", McpBuffered(20, 500));
   mcp.add_pin(18, "motor",  MCP_PWM_OUTPUT,     "Motor speed");
 
   mcp.add_tool("beep", "Play a tone", beep_handler);
@@ -155,6 +155,16 @@ void my_handler(int id, JsonObject params) {
 | `gpio_read`  | `pin`                        | Read digital level              |
 | `pwm_write`  | `pin`, `duty` (0–255)        | PWM output via `analogWrite`    |
 | `adc_read`   | `pin`                        | Read ADC value (0–4095)         |
+| `get_pin_summary` | `pin`                  | Rolling stats for sampled pins  |
+| `get_pin_buffer`  | `pin`, `limit` optional | Recent ring-buffer samples      |
+| `get_pin_events`  | `pin`                  | Current threshold events        |
+
+Enable sampling tools with pin options:
+
+```cpp
+mcp.add_pin(34, "sensor", MCP_ADC_INPUT, "Analog Sensor", McpBuffered(20, 500));
+mcp.add_pin(35, "temp", MCP_ADC_INPUT, "Temperature", McpThreshold(10, 35, 1000));
+```
 
 ---
 
