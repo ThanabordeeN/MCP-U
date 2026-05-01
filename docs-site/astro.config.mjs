@@ -6,7 +6,7 @@ import starlight from '@astrojs/starlight';
 import vercel from '@astrojs/vercel';
 
 export default defineConfig({
-  site: 'https://mcpu-2edge.vercel.app',
+  site: 'https://mcp-u.vercel.app',
   output: 'static',
   adapter: vercel(),
   redirects: {
