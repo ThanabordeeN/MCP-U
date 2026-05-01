@@ -1,6 +1,6 @@
 # Compatibility Reference
 
-## Firmware — McpIot Library
+## Firmware — MCP-U Library
 
 ### Supported Boards
 

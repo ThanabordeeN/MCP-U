@@ -10,11 +10,17 @@
  *   2. DEVICES env var      "id:port:baud,id2:host:port:tcp"
  */
 
-import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  McpServer,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { DeviceManager } from "./device_manager.js";
-import { json_schema_to_zod } from "./schema_builder.js";
+import {
+  builtin_fallback_schema,
+  json_schema_to_zod,
+} from "./schema_builder.js";
 import type { DeviceConfig } from "./transport.js";
 
 // ---------------------------------------------------------------------------
@@ -23,27 +29,43 @@ import type { DeviceConfig } from "./transport.js";
 
 function load_devices(): DeviceConfig[] {
   if (process.env.SERIAL_PORT) {
-    return [{
-      id: "esp32",
-      transport: "serial" as const,
-      port: process.env.SERIAL_PORT,
-      baud: Number(process.env.SERIAL_BAUD ?? 115200),
-    }];
+    return [
+      {
+        id: "esp32",
+        transport: "serial" as const,
+        port: process.env.SERIAL_PORT,
+        baud: Number(process.env.SERIAL_BAUD ?? 115200),
+      },
+    ];
   }
 
   if (process.env.DEVICES) {
     return process.env.DEVICES.split(",").map((entry) => {
       const parts = entry.trim().split(":");
       const [id, port_or_host, baud_or_port, maybe_transport] = parts;
-      const is_tcp = maybe_transport === "tcp" || (parts.length === 4 && maybe_transport === "tcp");
+      const is_tcp =
+        maybe_transport === "tcp" ||
+        (parts.length === 4 && maybe_transport === "tcp");
       if (is_tcp) {
-        return { id, transport: "tcp" as const, host: port_or_host, port_num: Number(baud_or_port) };
+        return {
+          id,
+          transport: "tcp" as const,
+          host: port_or_host,
+          port_num: Number(baud_or_port),
+        };
       }
-      return { id, transport: "serial" as const, port: port_or_host, baud: Number(baud_or_port ?? 115200) };
+      return {
+        id,
+        transport: "serial" as const,
+        port: port_or_host,
+        baud: Number(baud_or_port ?? 115200),
+      };
     });
   }
 
-  throw new Error("No device config found. Set SERIAL_PORT or DEVICES env var.");
+  throw new Error(
+    "No device config found. Set SERIAL_PORT or DEVICES env var.",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +89,7 @@ const multi_device = all_devices.length > 1;
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const server = new McpServer({ name: "mcu-iot", version: "1.0.0" });
+const server = new McpServer({ name: "MCP-U", version: "1.1.0" });
 
 // ---------------------------------------------------------------------------
 // Meta tool — always present
@@ -77,8 +99,19 @@ server.registerTool(
   "list_devices",
   { description: "List all connected MCUs with their tools and pin registry" },
   async () => ({
-    content: [{ type: "text" as const, text: JSON.stringify(manager.list().map(({ id, info, pins, tools }) => ({ id, info, pins, tools })), null, 2) }],
-  })
+    content: [
+      {
+        type: "text" as const,
+        text: JSON.stringify(
+          manager
+            .list()
+            .map(({ id, info, pins, tools }) => ({ id, info, pins, tools })),
+          null,
+          2,
+        ),
+      },
+    ],
+  }),
 );
 
 // ---------------------------------------------------------------------------
@@ -90,11 +123,22 @@ for (const device of all_devices) {
     // Naming: no prefix for single device, double-underscore prefix for multi
     const mcp_name = multi_device ? `${device.id}__${tool.name}` : tool.name;
 
+    const firmware_shape = json_schema_to_zod(tool.inputSchema);
+    const fallback_shape =
+      Object.keys(firmware_shape).length === 0
+        ? builtin_fallback_schema(tool.name)
+        : {};
+
     const zod_shape = {
       ...(multi_device
-        ? { device_id: z.literal(device.id).describe(`Target device (${device.id})`) }
+        ? {
+            device_id: z
+              .literal(device.id)
+              .describe(`Target device (${device.id})`),
+          }
         : {}),
-      ...json_schema_to_zod(tool.inputSchema),
+      ...fallback_shape,
+      ...firmware_shape,
     };
 
     server.registerTool(
@@ -103,15 +147,21 @@ for (const device of all_devices) {
         description: multi_device
           ? `[${device.id}] ${tool.description}`
           : tool.description,
-        inputSchema: zod_shape,
+        inputSchema: z.object(zod_shape).passthrough(),
       },
       async (args: Record<string, unknown>) => {
         const { device_id: _device_id, ...params } = args;
-        const result = await manager.call(device.id, tool.name, params as Record<string, unknown>);
+        const result = await manager.call(
+          device.id,
+          tool.name,
+          params as Record<string, unknown>,
+        );
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+          content: [
+            { type: "text" as const, text: JSON.stringify(result, null, 2) },
+          ],
         };
-      }
+      },
     );
   }
 }
@@ -123,31 +173,51 @@ for (const device of all_devices) {
 server.registerResource(
   "mcu-devices",
   "mcu://devices",
-  { mimeType: "application/json", description: "All connected MCUs with their tool and pin registries" },
+  {
+    mimeType: "application/json",
+    description: "All connected MCUs with their tool and pin registries",
+  },
   async () => ({
-    contents: [{
-      uri:      "mcu://devices",
-      mimeType: "application/json",
-      text:     JSON.stringify(manager.list().map(({ id, info, pins, tools }) => ({ id, info, pins, tools })), null, 2),
-    }],
-  })
+    contents: [
+      {
+        uri: "mcu://devices",
+        mimeType: "application/json",
+        text: JSON.stringify(
+          manager
+            .list()
+            .map(({ id, info, pins, tools }) => ({ id, info, pins, tools })),
+          null,
+          2,
+        ),
+      },
+    ],
+  }),
 );
 
 server.registerResource(
   "mcu-device-pins",
   new ResourceTemplate("mcu://{device_id}/pins", { list: undefined }),
-  { mimeType: "application/json", description: "Pin registry for a specific MCU" },
+  {
+    mimeType: "application/json",
+    description: "Pin registry for a specific MCU",
+  },
   async (uri, { device_id }) => {
     const device = manager.list().find((d) => d.id === device_id);
     if (!device) throw new Error(`Unknown device: ${device_id}`);
     return {
-      contents: [{
-        uri:      uri.href,
-        mimeType: "application/json",
-        text:     JSON.stringify({ id: device.id, info: device.info, pins: device.pins }, null, 2),
-      }],
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(
+            { id: device.id, info: device.info, pins: device.pins },
+            null,
+            2,
+          ),
+        },
+      ],
     };
-  }
+  },
 );
 
 // ---------------------------------------------------------------------------
@@ -157,5 +227,11 @@ server.registerResource(
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-process.on("SIGINT",  () => { manager.close_all(); process.exit(0); });
-process.on("SIGTERM", () => { manager.close_all(); process.exit(0); });
+process.on("SIGINT", () => {
+  manager.close_all();
+  process.exit(0);
+});
+process.on("SIGTERM", () => {
+  manager.close_all();
+  process.exit(0);
+});

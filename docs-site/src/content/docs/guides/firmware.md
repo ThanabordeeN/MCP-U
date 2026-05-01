@@ -7,18 +7,18 @@ description: Install the MCP-U library and learn the complete API for making you
 
 ### PlatformIO
 
-The library lives in `firmware/lib/McpIot/` and is auto-detected by PlatformIO.
+The library lives in `firmware/lib/MCP-U/` and is auto-detected by PlatformIO.
 
 For standalone use, add to `platformio.ini`:
 ```ini
 lib_deps =
   bblanchon/ArduinoJson @ ^7
-  original2547/McpIot @ ^1.1.0
+  ThanabordeeN/MCP-U_Arduino @ ^1.1.0
 ```
 
 ### Arduino IDE
 
-1. **Sketch → Include Library → Manage Libraries** → search `McpIot` → Install
+1. **Sketch → Include Library → Manage Libraries** → search `MCP-U` → Install
 2. Or [Download as ZIP](https://github.com/ThanabordeeN/MCP-U_Arduino/archive/refs/heads/main.zip) → **Sketch → Include Library → Add .ZIP Library**
 3. `#include <MCP-U.h>` in your sketch
 
