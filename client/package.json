@@ -1,6 +1,6 @@
 {
   "name": "mcpu-client",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "MCP/U client — bridges AI agents to ESP32/Arduino devices over Serial or TCP via the Model Context Protocol",
   "type": "module",
   "main": "dist/index.js",

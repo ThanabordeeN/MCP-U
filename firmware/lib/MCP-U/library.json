@@ -1,6 +1,6 @@
 {
   "name": "MCP-U",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP/U — The Unified Interface for AI-Ready Microcontrollers. JSON-RPC 2.0 over any Stream.",
   "keywords": ["mcp", "iot", "json-rpc", "serial", "ai", "llm", "gpio", "mcpu"],
   "authors": [
