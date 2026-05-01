@@ -1,4 +1,4 @@
-# MCP/U Firmware Guide — McpIot Library
+# MCP/U Firmware Guide — MCP-U Library
 
 ## Installation
 
@@ -10,7 +10,7 @@ For standalone use, add to `platformio.ini`:
 ```ini
 lib_deps =
   bblanchon/ArduinoJson @ ^7
-  ; local or GitHub path to McpIot
+  ; local or GitHub path to MCP-U
 ```
 
 ### Arduino IDE
@@ -18,7 +18,7 @@ lib_deps =
 1. Download this repository as a ZIP
 2. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library**
 3. Select the downloaded ZIP
-4. Include in your sketch: `#include <McpIot.h>`
+4. Include in your sketch: `#include <MCP-U.h>`
 
 ---
 

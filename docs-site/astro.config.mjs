@@ -32,7 +32,7 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
-            { label: 'Firmware (McpIot Library)', slug: 'guides/firmware' },
+            { label: 'Firmware (MCP-U Library)', slug: 'guides/firmware' },
             { label: 'Client Setup', slug: 'guides/client' },
             { label: 'CLI Agents', slug: 'guides/cli-agents' },
           ],

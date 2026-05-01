@@ -18,7 +18,7 @@
 ```
 ┌─────────────────┐         ┌──────────────────────┐         ┌───────────────┐
 │  Claude / Gemini│◄──MCP──►│  mcpu-client (npm)   │◄─Serial─►  MCU Firmware │
-│  or any LLM     │  stdio  │  Dynamic tool regist. │  /TCP   │  McpIot lib   │
+│  or any LLM     │  stdio  │  Dynamic tool regist. │  /TCP   │  MCP-U lib   │
 └─────────────────┘         └──────────────────────┘         └───────────────┘
 ```
 
@@ -103,7 +103,7 @@ claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
 ## Firmware API
 
 ```cpp
-#include <McpIot.h>
+#include <MCP-U.h>
 
 McpDevice mcp("my-device", "1.0.0");
 
@@ -187,7 +187,7 @@ With multiple devices, tools are named `{device_id}__{tool_name}` (e.g. `robot__
 ```
 ├── firmware/               ESP32 firmware (PlatformIO project)
 │   ├── src/main.cpp        Example firmware
-│   └── lib/McpIot/         McpIot Arduino library
+│   └── lib/MCP-U/          MCP-U Arduino library
 ├── client/                 Universal MCP client (TypeScript, published on npm)
 │   └── src/
 │       ├── index.ts        Dynamic MCP server

@@ -48,3 +48,43 @@ export function json_schema_to_zod(
 
   return shape;
 }
+
+/**
+ * Built-in fallback schemas for low-memory firmware that omits inputSchema.
+ * AVR builds intentionally skip schema emission to save heap, but the MCP SDK
+ * strips arguments when a tool is registered with an empty object schema.
+ */
+export function builtin_fallback_schema(
+  tool_name: string
+): Record<string, z.ZodTypeAny> {
+  const pin_number = z.number().int().describe("GPIO pin number");
+  const pin_ref = z
+    .union([z.string(), z.number().int()])
+    .describe("Pin name or GPIO pin number");
+
+  switch (tool_name) {
+    case "gpio_write":
+      return {
+        pin: pin_number,
+        value: z.boolean().describe("true = HIGH, false = LOW"),
+      };
+    case "gpio_read":
+    case "adc_read":
+      return { pin: pin_number };
+    case "pwm_write":
+      return {
+        pin: pin_number,
+        duty: z.number().int().describe("Duty cycle 0-255"),
+      };
+    case "get_pin_summary":
+    case "get_pin_events":
+      return { pin: pin_ref };
+    case "get_pin_buffer":
+      return {
+        pin: pin_ref,
+        limit: z.number().int().optional().describe("Max samples to return"),
+      };
+    default:
+      return {};
+  }
+}
