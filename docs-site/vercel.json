@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    { "source": "/guides/getting-started", "destination": "/tutorials/getting-started", "permanent": true },
+    { "source": "/guides/firmware", "destination": "/reference/firmware-api", "permanent": true },
+    { "source": "/guides/client", "destination": "/how-to/configure-agent", "permanent": true },
+    { "source": "/guides/cli-agents", "destination": "/how-to/configure-agent", "permanent": true },
+    { "source": "/reference/architecture", "destination": "/explanation/architecture", "permanent": true }
+  ]
+}
