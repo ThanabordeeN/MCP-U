@@ -1,0 +1,278 @@
+---
+title: Troubleshooting
+description: Common issues and solutions when working with MCP/U.
+---
+
+This page covers the most frequently encountered issues when setting up and using MCP/U. Each issue includes clear steps to diagnose and fix the problem.
+
+---
+
+## Serial Port Not Found
+
+**Symptoms:** Client fails to connect with "Port not found" or "Unable to open serial port".
+
+**Diagnosis:**
+1. Check that the device is connected via USB
+2. Verify the cable is data-capable (some charge-only cables don't work)
+3. Identify the correct port:
+
+| OS | Command | Example |
+|----|---------|---------|
+| Linux | `ls /dev/ttyUSB* /dev/ttyACM*` | `/dev/ttyACM0` |
+| macOS | `ls /dev/tty.usbserial-*` | `/dev/tty.usbserial-1420` |
+| Windows | Device Manager → Ports | `COM3` |
+
+**Fix:**
+```bash
+# Linux: check available ports
+ls -la /dev/ttyUSB* /dev/ttyACM*
+
+# macOS: check USB serial devices
+ls -la /dev/tty.*
+
+# Windows: open Device Manager, look under "Ports (COM & LPT)"
+```
+
+:::tip[USB hub issues]
+If using a USB hub, try connecting directly to the motherboard. Some hubs don't expose serial devices correctly.
+:::
+
+---
+
+## Permission Denied
+
+**Symptoms:** "Permission denied" or "Access denied" when opening the serial port.
+
+**Diagnosis:** On Linux and macOS, the user needs permission to access serial devices.
+
+**Fix:**
+
+### Linux
+
+```bash
+# Add user to dialout group
+sudo usermod -aG dialout $USER
+
+# Log out and log back in for group membership to take effect
+# Or use newgrp to apply immediately:
+newgrp dialout
+```
+
+### macOS
+
+```bash
+# Usually just works, but if not:
+ls -la /dev/tty.usbserial-*
+# If you can read but not write, check:
+# System Preferences → Security & Privacy → Full Disk Access
+```
+
+### Windows
+
+Run your terminal or Claude Desktop as Administrator, or use Device Manager to change COM port permissions.
+
+---
+
+## Port Busy
+
+**Symptoms:** "Port busy" or "Device or resource busy" when trying to connect.
+
+**Diagnosis:** Another process is using the serial port.
+
+**Fix:**
+
+```bash
+# Linux: find what's using the port
+lsof /dev/ttyACM0
+
+# Common culprits:
+# - Arduino Serial Monitor
+# - PlatformIO Device Monitor
+# - Other serial terminal apps
+
+# Close the conflicting application and try again
+```
+
+:::caution[Serial Monitor conflict]
+Never have the Arduino Serial Monitor or PlatformIO monitor open while running the MCP client. They hold the port exclusively.
+:::
+
+---
+
+## ESP32 Not Responding
+
+**Symptoms:** Client connects but calls timeout; device appears to do nothing.
+
+**Diagnosis:** Multiple possible causes — baud rate mismatch, DTR reset timing, or boot issues.
+
+**Fix:**
+
+1. **Check baud rate** — Default is 115200. If you changed it in your firmware, set `SERIAL_BAUD`:
+   ```bash
+   SERIAL_PORT=/dev/ttyACM0 SERIAL_BAUD=9600 npx mcpu-client
+   ```
+
+2. **Check Serial Monitor output** — Open PlatformIO monitor or Arduino Serial Monitor (close it before running client):
+   ```bash
+   pio device monitor
+   ```
+   Look for:
+   - "MCP device ready" — firmware is running
+   - "Connecting to WiFi..." — WiFi is initializing
+   - Error messages
+
+3. **DTR reset timing** — ESP32 reboots when DTR is toggled (used for flash mode). The client waits 600ms by default. If your ESP32 boots slower, increase the delay in `device_manager.ts` or add a manual delay in `setup()`:
+   ```cpp
+   delay(1000);  // Wait for boot
+   device.begin(Serial);
+   ```
+
+4. **Check WiFi** — If using TCP transport, verify the ESP32 is connected:
+   ```cpp
+   Serial.print("IP: ");
+   Serial.println(WiFi.localIP());
+   ```
+   Use this IP in your `DEVICES` config.
+
+---
+
+## WiFi Won't Connect
+
+**Symptoms:** ESP32 prints "Connecting to WiFi..." forever, or fails to connect.
+
+**Diagnosis:** WiFi credentials or network issues.
+
+**Fix:**
+
+1. **Check SSID and password** — Ensure they match exactly (case-sensitive)
+2. **Use 2.4GHz** — ESP32 doesn't support 5GHz WiFi
+3. **Check Serial Monitor** for error messages:
+   - "WiFi timeout" — SSID/password issue or weak signal
+   - "Wrong password" — exact error from ESP32
+
+4. **Test with a simple sketch:**
+   ```cpp
+   #include <WiFi.h>
+   
+   void setup() {
+     Serial.begin(115200);
+     WiFi.begin("YourSSID", "YourPassword");
+     while (WiFi.status() != WL_CONNECTED) {
+       delay(500);
+       Serial.print(".");
+     }
+     Serial.println(WiFi.localIP());
+   }
+   
+   void loop() {}
+   ```
+
+5. **Network requirements:**
+   - Same network as the client (or port forwarded)
+   - No captive portals or enterprise auth
+   - Firewall not blocking the TCP port
+
+---
+
+## Can't Connect via TCP
+
+**Symptoms:** "Connection refused" or "Connection timed out" when using TCP transport.
+
+**Diagnosis:** Network connectivity or firewall issues.
+
+**Fix:**
+
+1. **Verify IP address** — Check Serial Monitor for the IP the ESP32 received
+2. **Same network** — Client and ESP32 must be on the same subnet
+3. **Check port** — Default is 3000, ensure it matches your config:
+   ```bash
+   DEVICES=mydevice:192.168.1.42:3000:tcp npx mcpu-client
+   ```
+4. **Test with telnet:**
+   ```bash
+   telnet 192.168.1.42 3000
+   ```
+   You should see a connection. Type something and press Enter — the ESP32 should respond with an error (not a valid JSON-RPC).
+
+5. **Firewall check:**
+   - Linux: `sudo ufw allow 3000/tcp`
+   - Windows: Allow through Windows Firewall or disable temporarily to test
+
+---
+
+## Tool Not Found
+
+**Symptoms:** Claude reports "Tool not found" when calling a tool.
+
+**Diagnosis:** Tool not registered, wrong name, or firmware not flashed correctly.
+
+**Fix:**
+
+1. **Use MCP Inspector** to see available tools:
+   ```bash
+   SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+   ```
+
+2. **Check list_tools output** — The inspector shows what the device advertised
+
+3. **Verify firmware flashed** — Re-upload the firmware:
+   ```bash
+   pio run --target upload
+   ```
+
+4. **Check tool name** — For multi-device, prefix with device ID:
+   - Single device: `gpio_write`
+   - Multi-device: `robot__gpio_write`
+
+5. **Restart client** — Tools are registered at startup. Restart after flashing new firmware.
+
+---
+
+## AVR Memory Issues
+
+**Symptoms:** Firmware crashes, resets unexpectedly, or fails to compile on Arduino Uno/Mega/Nano.
+
+**Diagnosis:** RAM exhaustion — Uno has only 2KB SRAM.
+
+**Fix:**
+
+1. **Reduce pin and tool limits** in `platformio.ini` or `build_flags`:
+   ```ini
+   build_flags =
+       -DMCP_MAX_PINS=4
+       -DMCP_MAX_TOOLS=4
+       -DMCP_SERIAL_BUFFER=256
+   ```
+
+2. **Use Mega instead of Uno** — More SRAM (8KB vs 2KB)
+
+3. **Avoid strings in setup()** — String literals consume RAM. Use `F()` macro:
+   ```cpp
+   // Bad
+   device.add_pin(2, "led", DIGITAL_OUTPUT);
+   
+   // Better (uses flash, not RAM)
+   device.add_pin(2, F("led"), DIGITAL_OUTPUT);
+   ```
+
+4. **Check ArduinoJson version** — v7 requires more RAM. Consider v6:
+   ```ini
+   lib_deps =
+       bblanchon/ArduinoJson@^6.21.0
+   ```
+
+5. **Disable Serial output** in release builds to save RAM
+
+:::caution[Uno is marginal]
+Arduino Uno with MCP/U v1.0 is at the edge of viability. For production, use ESP32 or Mega.
+:::
+
+---
+
+## Still Stuck?
+
+If your issue isn't listed here:
+
+1. **Check the GitHub Issues** — someone may have had the same problem: https://github.com/ThanabordeeN/mcpu/issues
+2. **Open a new Issue** — include your board, firmware version, client version, and the exact error message
+3. **Enable debug output** — set `DEBUG=1` in your environment to see verbose logs

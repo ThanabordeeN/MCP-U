@@ -1,0 +1,235 @@
+---
+title: Dynamic Tool Discovery
+description: How MCP/U's self-describing firmware auto-discovers tools at runtime.
+---
+
+## What Is Self-Describing Firmware?
+
+Traditional tool integrations require the client to know ahead of time what tools exist — you hardcode `gpio_write`, `adc_read`, etc. in your client. If you add a new tool to your firmware, you must update the client code.
+
+MCP/U inverts this model. The firmware **declares** its capabilities at runtime. The client asks "what can you do?" and the firmware responds with a complete list: tool names, descriptions, parameter schemas, and pin registry. The client never hardcodes tool names.
+
+This means:
+- Adding a new sensor → firmware registers a tool → client discovers it automatically
+- Swapping firmware versions → tools change → client adapts without code changes
+- Multi-device with different capabilities → each device advertises its own tools
+
+---
+
+## Step-by-Step Discovery Sequence
+
+```
+┌─────────────┐                              ┌─────────────┐
+│   Client    │                              │    MCU      │
+│             │                              │             │
+│  connect()  │─────── Serial/TCP ─────────►│  (listens)  │
+│             │                              │             │
+│  get_info() │────────────────────────────►│             │
+│             │◄───── {device, version,      │             │
+│             │        platform, pin_count}  │             │
+│             │                              │             │
+│  list_tools │────────────────────────────►│             │
+│             │◄───── {tools[], pins[]}       │             │
+│             │                              │             │
+│  (register  │   (for each tool:            │             │
+│   MCP tools)│    convert schema,           │             │
+│             │    register handler)         │             │
+└─────────────┘                              └─────────────┘
+```
+
+### 1. Connect
+
+The client opens a Serial or TCP connection to the MCU. For ESP32 over USB, a 600ms delay allows the DTR signal to trigger a board reset and boot into the application.
+
+### 2. get_info
+
+The client calls the `get_info` method:
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "get_info"}
+```
+
+The firmware responds:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "device": "esp32-demo",
+    "version": "1.0.0",
+    "platform": "arduino",
+    "pin_count": 3
+  }
+}
+```
+
+This gives the client basic device identification for logging and multi-device differentiation.
+
+### 3. list_tools
+
+The client calls `list_tools`:
+
+```json
+{"jsonrpc": "2.0", "id": 2, "method": "list_tools"}
+```
+
+The firmware responds with a complete capability manifest:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "result": {
+    "device": "esp32-demo",
+    "version": "1.0.0",
+    "tools": [
+      {
+        "name": "gpio_write",
+        "description": "Write HIGH or LOW to a digital output pin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pin": { "type": "integer", "description": "GPIO pin number" },
+            "value": { "type": "boolean", "description": "true = HIGH, false = LOW" }
+          },
+          "required": ["pin", "value"]
+        }
+      },
+      {
+        "name": "adc_read",
+        "description": "Read analog voltage from ADC pin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pin": { "type": "integer", "description": "ADC pin number" }
+          },
+          "required": ["pin"]
+        }
+      }
+    ],
+    "pins": [
+      { "pin": 2, "name": "led", "type": "digital_output", "description": "Onboard LED" },
+      { "pin": 34, "name": "sensor", "type": "adc_input", "description": "Light sensor" }
+    ]
+  }
+}
+```
+
+### 4. Register MCP Tools
+
+The client iterates over each tool in the response:
+- Converts the JSON Schema to a Zod schema (see below)
+- Registers it as an MCP tool with the AI agent
+- Binds the handler to forward calls to the correct device
+
+For multi-device setups, tool names are prefixed: `robot__gpio_write`, `sensor__adc_read`.
+
+---
+
+## What list_tools Returns
+
+The `list_tools` response contains:
+
+| Field | Description |
+|-------|-------------|
+| `tools[]` | Array of tool definitions, each with `name`, `description`, and `inputSchema` |
+| `pins[]` | Pin registry mapping physical pins to logical names and types |
+| `device` | Device identifier (from `get_info`) |
+| `version` | Firmware version (from `get_info`) |
+
+### Tool Definition
+
+Each tool includes:
+- **name** — unique identifier, used in JSON-RPC calls
+- **description** — human-readable explanation for AI agents
+- **inputSchema** — JSON Schema describing parameters
+
+### Pin Registry
+
+Each pin includes:
+- **pin** — physical pin number
+- **name** — friendly identifier (e.g., "led", "buzzer")
+- **type** — `digital_output`, `digital_input`, `pwm_output`, `adc_input`
+- **description** — what the pin is used for
+
+---
+
+## JSON Schema to Zod Conversion
+
+The MCP SDK requires Zod schemas for tool validation. The client includes `schema_builder.ts` which converts firmware JSON Schema to Zod at runtime.
+
+### Type Mapping
+
+| JSON Schema Type | Zod Type |
+|-----------------|----------|
+| `integer` | `z.number().int()` |
+| `number` | `z.number()` |
+| `boolean` | `z.boolean()` |
+| `string` | `z.string()` |
+
+### Field Handling
+
+- `required` array → fields are required in Zod
+- Optional fields → omitted from `required` become optional in Zod
+- `description` → preserved as Zod schema metadata
+
+### Example
+
+Firmware JSON Schema:
+```json
+{
+  "type": "object",
+  "properties": {
+    "pin": { "type": "integer", "description": "GPIO pin number" },
+    "value": { "type": "boolean", "description": "true = HIGH, false = LOW" }
+  },
+  "required": ["pin", "value"]
+}
+```
+
+Becomes Zod:
+```typescript
+z.object({
+  pin: z.number().int().describe("GPIO pin number"),
+  value: z.boolean().describe("true = HIGH, false = LOW")
+})
+```
+
+---
+
+## Why This Is Better Than Hardcoded Tools
+
+| Aspect | Hardcoded Tools | MCP/U Dynamic Discovery |
+|--------|-----------------|-------------------------|
+| Adding a tool | Client code change required | Automatic on client restart |
+| Firmware updates | May break client | Client adapts |
+| Multi-device | Complex conditional logic | Each device advertises its own tools |
+| Documentation | Manual | Generated from firmware |
+| Tool discovery | None | Complete at startup |
+| Custom tools | Must be added to client | Just register in firmware |
+
+The key insight: **the firmware knows what it can do better than the client ever could**. By pushing capability discovery to the device, we eliminate the need for manual client updates every time hardware changes.
+
+---
+
+## AVR Note: Schema Omission
+
+On AVR-based boards (Uno, Mega, Nano), RAM is extremely constrained (~2KB). Including full JSON Schema for every tool can exhaust memory.
+
+To handle this, MCP/U on AVR:
+- **Omits `inputSchema`** from `list_tools` response by default
+- The client receives tool names and descriptions but no parameter schemas
+
+The client provides **fallback schemas** for built-in tools (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`). Custom tools on AVR may not have full schema information.
+
+:::tip[AVR Memory Tip]
+If you hit memory limits on AVR, reduce `MCP_MAX_PINS` and `MCP_MAX_TOOLS` in your build flags:
+```
+-DMCP_MAX_PINS=4 -DMCP_MAX_TOOLS=4
+```
+:::
+
+:::note[Schema availability]
+Custom tools on ESP32/ESP8266 always include full JSON Schema. Only AVR omits schemas to save heap space.
+:::

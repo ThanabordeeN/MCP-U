@@ -1,0 +1,52 @@
+---
+title: Build Flags & Limits
+description: Memory and pin limits configuration via build flags.
+---
+
+Override limits via build flags in `platformio.ini`:
+
+```ini
+build_flags =
+  -DMCP_MAX_PINS=32
+  -DMCP_MAX_TOOLS=32
+  -DMCP_SERIAL_BUFFER=1024
+```
+
+---
+
+## Configuration Flags
+
+| Constant | AVR default | ESP32 default | Description |
+|----------|:-----------:|:-------------:|-------------|
+| `MCP_MAX_PINS` | 8 | 16 | Max registered pins |
+| `MCP_MAX_TOOLS` | 8 | 24 | Max registered tools |
+| `MCP_SERIAL_BUFFER` | 256 B | 512 B | Serial read buffer |
+| `MCP_MAX_BUFFERED_PINS` | 2 | 8 | Max pins with ring buffers |
+| `MCP_MAX_BUFFER_SIZE` | 20 | 300 | Max samples per ring buffer |
+| `MCP_DEFAULT_BUFFER_SIZE` | 10 | 120 | Default buffer size |
+
+---
+
+## How to Set
+
+Add to your `platformio.ini`:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+
+build_flags =
+  -DMCP_MAX_PINS=32
+  -DMCP_MAX_TOOLS=32
+  -DMCP_SERIAL_BUFFER=1024
+  -DMCP_MAX_BUFFERED_PINS=16
+
+lib_deps =
+  bblanchon/ArduinoJson @ ^7
+```
+
+:::tip
+Defaults are selected automatically based on architecture — no config needed for typical use.
+:::

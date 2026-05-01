@@ -1,0 +1,199 @@
+---
+title: Protocol Specification
+description: MCP/U JSON-RPC 2.0 wire protocol specification v1.0.
+---
+
+## Overview
+
+MCP/U uses **JSON-RPC 2.0** over a **newline-delimited stream** (Serial or TCP). Each message is a single JSON object terminated by `\n`.
+
+---
+
+## Transport
+
+| Transport | Notes |
+|-----------|-------|
+| **Serial UART** | Primary. 115200 baud default. |
+| **TCP (WiFi)** | MCU listens on a configurable port. |
+| **Framing** | Each message ends with `\n`. No embedded newlines. |
+
+---
+
+## Request Format
+
+```json
+{"jsonrpc": "2.0", "id": 1, "method": "gpio_write", "params": {"pin": 2, "value": true}}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `jsonrpc` | `"2.0"` | Yes | JSON-RPC version |
+| `id` | integer | Yes | Request ID (echoed in response) |
+| `method` | string | Yes | Tool/method name |
+| `params` | object | No | Method parameters |
+
+:::note
+Requests without `id` are treated as notifications and receive no response.
+:::
+
+---
+
+## Response Format
+
+**Success:**
+```json
+{"jsonrpc": "2.0", "id": 1, "result": {"pin": 2, "name": "led", "value": true}}
+```
+
+**Error:**
+```json
+{"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "Bad params"}}
+```
+
+---
+
+## Error Codes
+
+| Code | Meaning | When |
+|------|---------|------|
+| `-32700` | Parse error | Invalid JSON received |
+| `-32600` | Invalid request | Missing `jsonrpc` or `method` |
+| `-32601` | Method not found | Unknown method name |
+| `-32602` | Invalid params | Missing or wrong-typed parameter |
+
+---
+
+## Built-in Methods
+
+### `get_info`
+
+Returns device metadata.
+
+**Request:**
+```json
+{"jsonrpc":"2.0","id":1,"method":"get_info"}
+```
+
+**Response:**
+```json
+{
+  "jsonrpc": "2.0", "id": 1,
+  "result": {
+    "device": "esp32-demo",
+    "version": "1.0.0",
+    "platform": "arduino",
+    "pin_count": 3
+  }
+}
+```
+
+---
+
+### `list_tools`
+
+Discovery endpoint. Returns all tools with JSON Schema + pin registry.
+
+**Request:**
+```json
+{"jsonrpc":"2.0","id":1,"method":"list_tools"}
+```
+
+**Response:**
+```json
+{
+  "jsonrpc": "2.0", "id": 1,
+  "result": {
+    "device": "esp32-demo",
+    "version": "1.0.0",
+    "tools": [
+      {
+        "name": "gpio_write",
+        "description": "Write HIGH or LOW to a digital output pin",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "pin":   { "type": "integer", "description": "GPIO pin number" },
+            "value": { "type": "boolean", "description": "true = HIGH, false = LOW" }
+          },
+          "required": ["pin", "value"]
+        }
+      }
+    ],
+    "pins": [
+      { "pin": 2,  "name": "led",    "type": "digital_output", "description": "Onboard LED" },
+      { "pin": 5,  "name": "buzzer", "type": "digital_output", "description": "Piezo Buzzer" },
+      { "pin": 34, "name": "sensor", "type": "adc_input",      "description": "Analog Sensor" }
+    ]
+  }
+}
+```
+
+---
+
+### `gpio_write`
+
+**Params:** `{ "pin": <integer>, "value": <boolean> }`
+
+**Response:** `{ "pin": 2, "name": "led", "value": true }`
+
+---
+
+### `gpio_read`
+
+**Params:** `{ "pin": <integer> }`
+
+**Response:** `{ "pin": 2, "name": "led", "value": true }`
+
+---
+
+### `pwm_write`
+
+Uses `analogWrite` — default 5 kHz. For custom frequency use a [custom LEDC tool](/guides/firmware/#pwm-with-custom-frequency-ledc).
+
+**Params:** `{ "pin": <integer>, "duty": <0–255> }`
+
+**Response:** `{ "pin": 18, "name": "led_pwm", "duty": 128 }`
+
+---
+
+### `adc_read`
+
+**Params:** `{ "pin": <integer> }`
+
+**Response (ESP32 / ESP8266):** `{ "pin": 34, "name": "sensor", "value": 2048, "volts": 1.65 }`
+
+**Response (AVR — Uno/Mega/Nano):** `{ "pin": 0, "name": "sensor", "value": 512, "mv": 1651 }`
+
+:::note[AVR note]
+On AVR boards the ADC is 10-bit (0–1023) and voltage is returned as integer millivolts in `mv` instead of `volts`, avoiding the softfloat library.
+:::
+
+---
+
+## Pin Types
+
+| Type string | Meaning | Valid operations |
+|-------------|---------|-----------------|
+| `digital_output` | Digital write pin | `gpio_write`, `gpio_read` |
+| `digital_input` | Digital read pin | `gpio_read` |
+| `pwm_output` | PWM output pin | `pwm_write` |
+| `adc_input` | Analog input pin | `adc_read` |
+
+---
+
+## Discovery Sequence
+
+```
+Client                          MCU
+  │                              │
+  │── connect (serial/TCP) ─────►│
+  │── get_info ─────────────────►│
+  │◄─ {device, version, ...} ───│
+  │── list_tools ───────────────►│
+  │◄─ {tools[], pins[]} ────────│
+  │                              │
+  │  (register MCP tools)        │
+  │                              │
+  │── gpio_write {pin:2,val:1} ─►│
+  │◄─ {pin:2, name:"led", ...} ─│
+```

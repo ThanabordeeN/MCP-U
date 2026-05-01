@@ -1,0 +1,121 @@
+---
+title: Pin Types & Sampling
+description: Pin type constants and sampling options reference.
+---
+
+## Pin Type Constants
+
+| Constant | Direction | Available built-in tools |
+|----------|-----------|--------------------------|
+| `MCP_DIGITAL_OUTPUT` | Output | `gpio_write`, `gpio_read` |
+| `MCP_DIGITAL_INPUT` | Input | `gpio_read` |
+| `MCP_PWM_OUTPUT` | Output | `pwm_write` |
+| `MCP_ADC_INPUT` | Input | `adc_read` |
+
+---
+
+## Sampling Helpers
+
+When registering input pins, you can add sampling options to enable automatic periodic reading and statistics:
+
+| Helper | Enables | Parameters |
+|--------|---------|------------|
+| `McpBuffered(bufferSize, intervalMs)` | summary + ring buffer | buffer size, sample interval |
+| `McpSummaryOnly(intervalMs)` | rolling statistics only | sample interval |
+| `McpThreshold(minValue, maxValue, intervalMs)` | summary + threshold events | min, max, sample interval |
+| `McpOutputSafe(approvalRequired)` | output safety metadata | approval flag |
+
+```cpp
+// Enable rolling statistics with 500ms sampling interval
+mcp.add_pin(34, "light", MCP_ADC_INPUT, "Light sensor", McpSummaryOnly(500));
+
+// Enable ring buffer with 20 samples, 500ms interval
+mcp.add_pin(35, "temp", MCP_ADC_INPUT, "Temp sensor", McpBuffered(20, 500));
+
+// Enable threshold events
+mcp.add_pin(36, "pressure", MCP_ADC_INPUT, "Pressure sensor", McpThreshold(0, 100, 1000));
+```
+
+:::note
+Sampling options are only meaningful for input pins (`MCP_DIGITAL_INPUT`, `MCP_ADC_INPUT`). Output pins automatically ignore sampling options.
+:::
+
+---
+
+## Built-in Sampling Tools
+
+When a pin is registered with `McpBuffered`, `McpSummaryOnly`, or `McpThreshold`,
+MCP-U samples it from `loop()` and exposes additional built-in tools.
+
+### `get_pin_summary`
+
+Returns rolling statistics for a sampled pin.
+
+**Params:** `{ "pin": "<name>" }` or `{ "pin": <gpio> }`
+
+**Response:**
+```json
+{
+  "pin": 34,
+  "name": "light",
+  "latest": 812,
+  "min": 120,
+  "max": 980,
+  "avg": 531.4,
+  "samples": 42
+}
+```
+
+---
+
+### `get_pin_buffer`
+
+Returns recent samples from a ring buffer. `limit` is optional.
+
+**Params:** `{ "pin": "<name>", "limit": 10 }`
+
+**Response:**
+```json
+{
+  "pin": "light",
+  "count": 20,
+  "values": [402, 418, 421, 430]
+}
+```
+
+**If buffering is not available for a pin:**
+```json
+{
+  "pin": "light",
+  "buffer_available": false,
+  "reason": "Buffer disabled on this platform or pin. Use get_pin_summary instead."
+}
+```
+
+---
+
+### `get_pin_events`
+
+Reports the current threshold state for pins registered with `McpThreshold`.
+
+**Params:** `{ "pin": "<name>" }`
+
+**Response:**
+```json
+{
+  "pin": "temperature",
+  "events": [
+    { "type": "threshold_high", "value": 38.2, "threshold": 35 }
+  ]
+}
+```
+
+---
+
+## AVR Note
+
+:::note
+On AVR builds, `list_tools` omits JSON schemas to save heap. The `mcpu-client`
+adds fallback schemas for built-in tools so `pin` and `limit` arguments still
+reach the MCU.
+:::

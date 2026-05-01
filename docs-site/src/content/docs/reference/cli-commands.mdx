@@ -1,0 +1,195 @@
+---
+title: CLI Commands Reference
+description: Reference for all CLI agent configuration commands.
+---
+
+## Claude Code
+
+### Add via CLI (recommended)
+
+**Serial:**
+```bash
+claude mcp add --env SERIAL_PORT=/dev/ttyACM0 mcpu -- npx mcpu-client
+```
+
+**WiFi TCP:**
+```bash
+claude mcp add --env DEVICES=mydevice:192.168.1.42:3000:tcp mcpu -- npx mcpu-client
+```
+
+All options (`--env`, `--scope`, `--transport`) must come **before** the server name. The `--` separator isolates the command passed to the MCP server.
+
+### Or edit `.mcp.json` (shared with team)
+
+**Serial:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+**WiFi TCP:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+### Verify
+
+```bash
+claude mcp list
+```
+
+Or inside a Claude Code session: `/mcp`
+
+---
+
+## Gemini CLI
+
+### Add via CLI (recommended)
+
+**Serial:**
+```bash
+gemini mcp add -e SERIAL_PORT=/dev/ttyACM0 mcpu npx mcpu-client
+```
+
+**WiFi TCP:**
+```bash
+gemini mcp add -e DEVICES=mydevice:192.168.1.42:3000:tcp mcpu npx mcpu-client
+```
+
+### Or edit `~/.gemini/settings.json` directly
+
+**Serial:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+**WiFi TCP:**
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+### Verify
+
+```bash
+gemini mcp list
+```
+
+Or inside a session: `/mcp`
+
+---
+
+## OpenCode
+
+OpenCode has no CLI add command — edit `opencode.json` directly.
+
+**Serial:**
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+**WiFi TCP:**
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+:::note
+OpenCode uses `"environment"` (not `"env"`) and `"command"` must be an **array**.
+:::
+
+### Verify
+
+```bash
+opencode mcp list
+```
+
+---
+
+## Comparison Summary
+
+| | Claude Code | Gemini CLI | OpenCode |
+|--|-------------|------------|----------|
+| **Add command** | `claude mcp add --env KEY=VAL mcpu -- npx mcpu-client` | `gemini mcp add -e KEY=VAL mcpu npx mcpu-client` | manual config only |
+| **Config file** | `.mcp.json` (project) | `~/.gemini/settings.json` | `opencode.json` |
+| **Env field** | `"env"` | `"env"` | `"environment"` |
+| **Command format** | string | string | array |
+| **Verify** | `claude mcp list` / `/mcp` | `gemini mcp list` / `/mcp` | `opencode mcp list` |
+
+---
+
+## Finding Serial Port
+
+| OS | Typical port |
+|----|-------------|
+| Linux | `/dev/ttyUSB0` or `/dev/ttyACM0` |
+| macOS | `/dev/cu.usbserial-*` |
+| Windows | `COM3`, `COM4`, … |
+
+```bash
+# Linux / macOS
+ls /dev/tty*
+```
+
+**Windows**: Device Manager → Ports (COM & LPT)

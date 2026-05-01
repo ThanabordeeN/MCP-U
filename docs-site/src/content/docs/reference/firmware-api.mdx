@@ -1,0 +1,195 @@
+---
+title: Firmware API Reference
+description: Complete API reference for the MCP-U Arduino library.
+---
+
+## Constructor
+
+### `McpDevice(name, version)`
+
+Declare once at file scope.
+
+```cpp
+McpDevice mcp("my-robot", "2.1.0");
+```
+
+---
+
+## Pin Management
+
+### `add_pin(pin, name, type, description)`
+
+Register a hardware pin. Call before `begin()`.
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `pin` | `uint8_t` | GPIO pin number |
+| `name` | `const char*` | Short identifier (e.g. `"led"`) |
+| `type` | `McpPinType` | See pin types below |
+| `description` | `const char*` | Human-readable description |
+
+```cpp
+mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Status LED");
+mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Light Sensor");
+```
+
+---
+
+### `add_pin(..., options)`
+
+Register a pin with sampling, rolling statistics, buffer, or threshold-event behavior.
+Options are only meaningful for input pins (`MCP_DIGITAL_INPUT`, `MCP_ADC_INPUT`).
+Output pins automatically ignore sampling options.
+
+```cpp
+mcp.add_pin(
+  34,
+  "light",
+  MCP_ADC_INPUT,
+  "Light sensor",
+  McpBuffered(20, 500)  // keep 20 samples, sample every 500 ms
+);
+```
+
+| Helper | Enables | Parameters |
+|--------|---------|------------|
+| `McpBuffered(bufferSize, intervalMs)` | summary + ring buffer | buffer size, sample interval |
+| `McpSummaryOnly(intervalMs)` | rolling statistics only | sample interval |
+| `McpThreshold(minValue, maxValue, intervalMs)` | summary + threshold events | min, max, sample interval |
+| `McpOutputSafe(approvalRequired)` | output safety metadata | approval flag |
+
+---
+
+## Custom Tools
+
+### `add_tool(name, description, handler)`
+
+Register a custom RPC tool. Call before `begin()`.
+
+```cpp
+void my_handler(int id, JsonObject params) {
+  int value = params["value"].as<int>();
+
+  JsonDocument res;
+  res["result"]["ok"] = true;
+  mcp.send_result(id, res);
+
+  // On error:
+  // mcp.send_error(id, -32602, "Invalid parameter");
+}
+
+mcp.add_tool("my_action", "Does something custom", my_handler);
+```
+
+**Handler signature:** `void handler(int id, JsonObject params)`
+
+**Response patterns:**
+
+```cpp
+// Success
+JsonDocument res;
+res["result"]["key"] = value;
+mcp.send_result(id, res);
+
+// Error
+mcp.send_error(id, -32602, "Invalid parameter");
+```
+
+**Standard error codes:**
+
+| Code | Meaning |
+|------|---------|
+| `-32700` | Parse error |
+| `-32600` | Invalid request |
+| `-32601` | Method not found |
+| `-32602` | Invalid params |
+
+---
+
+## Transport
+
+### `begin(stream, baud = 0)`
+
+Start the MCP device on any Arduino Stream — Serial, WiFiClient, etc.
+
+```cpp
+mcp.begin(Serial, 115200);     // USB Serial
+mcp.begin(Serial2, 9600);      // Hardware Serial 2
+mcp.begin(wifi_client);       // WiFiClient (connect first)
+```
+
+**Examples by transport:**
+
+**Serial (USB):**
+```cpp
+mcp.begin(Serial, 115200);
+```
+
+**Serial2 (Hardware):**
+```cpp
+mcp.begin(Serial2, 9600);
+```
+
+**WiFi TCP:**
+```cpp
+WiFiClient client;
+mcp.begin(client);  // after WiFi connection established
+```
+
+---
+
+### `loop()`
+
+Call from Arduino `loop()`. Reads and dispatches one RPC request per call.
+
+```cpp
+void loop() {
+  mcp.loop();
+}
+```
+
+---
+
+## Responses
+
+### `send_result(id, doc)`
+
+Send a success response. Set `doc["result"]` before calling.
+
+```cpp
+JsonDocument res;
+res["result"]["temperature"] = 25.4;
+mcp.send_result(id, res);
+```
+
+---
+
+### `send_error(id, code, message)`
+
+Send an error response.
+
+```cpp
+mcp.send_error(id, -32602, "Invalid pin number");
+```
+
+---
+
+## Installation
+
+### PlatformIO
+
+The library lives in `firmware/lib/MCP-U/` and is auto-detected by PlatformIO.
+
+For standalone use, add to `platformio.ini`:
+
+```ini
+lib_deps =
+  bblanchon/ArduinoJson @ ^7
+  ThanabordeeN/MCP-U_Arduino @ ^1.1.0
+```
+
+### Arduino IDE
+
+1. **Sketch → Include Library → Manage Libraries** → search `MCP-U` → Install
+2. Or [Download as ZIP](https://github.com/ThanabordeeN/MCP-U_Arduino/archive/refs/heads/main.zip) → **Sketch → Include Library → Add .ZIP Library**
+3. `#include <MCP-U.h>` in your sketch

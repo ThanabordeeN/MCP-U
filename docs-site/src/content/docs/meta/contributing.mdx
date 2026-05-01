@@ -1,0 +1,214 @@
+---
+title: Contributing
+description: How to contribute to the MCP/U project.
+---
+
+Thank you for your interest in contributing to MCP/U! This guide covers how to set up your development environment, follow our code style, and submit changes.
+
+---
+
+## Project Structure
+
+MCP/U is organized into three main components:
+
+```
+MCP-U/
+├── firmware/           # Arduino/PlatformIO library
+│   ├── lib/McpIot/   # McpIot library (header + source)
+│   ├── examples/     # Example projects
+│   └── platformio.ini
+│
+├── client/            # TypeScript MCP server
+│   ├── src/          # TypeScript source
+│   ├── dist/         # Compiled output
+│   └── package.json
+│
+└── docs-site/         # Astro/Starlight documentation
+    ├── src/content/docs/
+    └── astro.config.mjs
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `firmware/` | McpIot Arduino library — JSON-RPC over Serial/TCP |
+| `client/` | mcpu-client npm package — MCP server, tool discovery |
+| `docs-site/` | Documentation website (this site) |
+
+---
+
+## Development Environment
+
+### Prerequisites
+
+- **Node.js** 20+ (for client and docs)
+- **Python** 3.8+ (for PlatformIO)
+- **PlatformIO** (`pip install platformio`)
+- **Git**
+
+### Setting Up
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/ThanabordeeN/mcpu.git
+   cd mcpu
+   ```
+
+2. **Set up the client:**
+   ```bash
+   cd client
+   npm install
+   npm run build
+   ```
+
+3. **Set up the firmware:**
+   ```bash
+   cd firmware
+   pio run
+   ```
+
+4. **Set up the docs site:**
+   ```bash
+   cd docs-site
+   npm install
+   npm run dev
+   ```
+
+### Running Tests
+
+Currently, the project relies on manual testing with MCP Inspector. Run:
+
+```bash
+# Client
+cd client
+npm run dev
+
+# Docs
+cd docs-site
+npm run dev
+```
+
+---
+
+## Code Style Guidelines
+
+### Firmware (C++)
+
+- Use **2-space indentation**
+- **Curly braces** on same line as `if`/`while`/`for`
+- **Snake_case** for variables and functions: `digital_write`, `serial_buffer`
+- **PascalCase** for classes: `McpDevice`, `JsonRpcRequest`
+- **All caps** for constants: `MCP_MAX_PINS`, `JSON_BUFFER_SIZE`
+- Add **comments** for non-obvious logic
+- Keep functions under 50 lines where possible
+
+### Client (TypeScript)
+
+- Use **Prettier** for formatting (run `npm run format`)
+- Use **2-space indentation**
+- Use **camelCase** for variables and functions
+- Use **PascalCase** for types and interfaces
+- Add **JSDoc comments** for public APIs
+- Keep files under 200 lines where possible
+
+### Documentation (Markdown/MDX)
+
+- Use **sentence case** for headings
+- Use **backticks** for code: `gpio_write`, `Serial.begin()`
+- Use **bold** for UI elements: **Device Manager**, **MCP Inspector**
+- Use **tables** for structured information
+- Use **callouts** sparingly: `:::note`, `:::tip`, `:::caution`
+
+---
+
+## Submitting Changes
+
+### 1. Fork the Repository
+
+Click "Fork" on GitHub to create your own copy.
+
+### 2. Create a Branch
+
+```bash
+git checkout -b feature/my-new-feature
+# or
+git checkout -b fix/issue-description
+```
+
+### 3. Make Your Changes
+
+- Follow the code style guidelines above
+- Test your changes manually
+- Update documentation if needed
+
+### 4. Commit with a Clear Message
+
+```bash
+git add .
+git commit -m "Add support for PWM on ESP32-S3"
+```
+
+Write clear, concise commit messages:
+- Start with a verb: "Add", "Fix", "Update", "Remove"
+- Keep the first line under 72 characters
+- Explain *what* and *why*, not *how*
+
+### 5. Submit a Pull Request
+
+1. Push to your fork:
+   ```bash
+   git push origin feature/my-new-feature
+   ```
+
+2. Open a Pull Request on GitHub: https://github.com/ThanabordeeN/mcpu/compare
+
+3. Fill in the PR template:
+   - **Description** — What does this change do?
+   - **Testing** — How did you test it?
+   - **Related issues** — Link any issues this addresses
+
+### 6. Respond to Review
+
+- Be responsive to feedback
+- Make requested changes in new commits
+- Once approved, your PR will be merged
+
+---
+
+## Issue Reporting Guidelines
+
+When reporting an issue, include:
+
+| Field | Description |
+|-------|-------------|
+| **Board** | ESP32, ESP8266, Uno, Mega, etc. |
+| **Firmware version** | From `pio run` output or git commit |
+| **Client version** | From `npm list mcpu-client` |
+| **Steps to reproduce** | Clear, numbered steps |
+| **Expected behavior** | What should happen |
+| **Actual behavior** | What actually happened |
+| **Error message** | Exact text, including any stack trace |
+| **Serial output** | Relevant output from Serial Monitor |
+
+:::tip[Use templates]
+GitHub issue templates help ensure you include all necessary information.
+:::
+
+---
+
+## Communication
+
+- **GitHub Issues** — Bug reports, feature requests, questions
+- **GitHub Discussions** — General discussion, show and tell
+- **Repository** — https://github.com/ThanabordeeN/mcpu
+
+---
+
+## License
+
+By contributing to MCP/U, you agree that your contributions will be licensed under the MIT License.
+
+---
+
+## Thank You!
+
+Every contribution — whether code, documentation, or issue reports — helps make MCP/U better for everyone. We appreciate your time and effort!

@@ -1,0 +1,188 @@
+---
+title: Quick Start
+description: Flash firmware, start the client, and connect your AI agent to an MCU in 5 minutes.
+---
+
+import { Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+
+This tutorial walks you through connecting your first ESP32 to an AI agent via MCP/U. By the end, Claude (or any MCP agent) will be able to read sensors and control outputs on your MCU.
+
+## Prerequisites
+
+- ESP32 board (or any Arduino-compatible MCU)
+- [PlatformIO](https://platformio.org) or Arduino IDE
+- Node.js 18+
+- USB cable (for Serial) or WiFi credentials (for TCP)
+- An MCP-compatible agent ([Claude Desktop](https://claude.ai), [Claude Code](https://code.claude.com), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [OpenCode](https://opencode.ai))
+
+---
+
+## Step 1 — Flash the Firmware
+
+Clone the repo and flash:
+
+<Tabs>
+  <TabItem label="PlatformIO">
+
+```bash
+git clone https://github.com/ThanabordeeN/mcpu
+cd mcpu/firmware
+pio run -t upload
+```
+
+  </TabItem>
+  <TabItem label="Arduino IDE">
+
+Open `firmware/src/main.cpp` in Arduino IDE and click **Upload**.
+
+  </TabItem>
+</Tabs>
+
+The default sketch exposes:
+- **GPIO 2** — `led` (digital output)
+- **GPIO 5** — `buzzer` (digital output)
+- **GPIO 34** — `sensor` (ADC input)
+
+If using **WiFi TCP**, edit the credentials at the top of the sketch before uploading:
+
+```cpp
+static const char*    WIFI_SSID     = "YOUR_SSID";
+static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
+static const uint16_t TCP_PORT      = 3000;
+```
+
+After uploading, open the Serial Monitor (115200 baud). The ESP32 prints its IP:
+
+```
+Connecting to WiFi....
+IP: 192.168.1.42
+TCP server listening on port 3000
+```
+
+Note that IP — you'll need it in the next step.
+
+---
+
+## Step 2 — Connect Your AI Agent
+
+MCP/U ships as an npm package — no local clone needed for the client.
+
+<Tabs>
+  <TabItem label="Claude Desktop">
+
+**Serial — Linux / macOS** (`~/.config/claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": { "SERIAL_PORT": "/dev/ttyACM0" }
+    }
+  }
+}
+```
+
+**WiFi TCP** (use the IP from Step 1):
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": { "DEVICES": "mydevice:192.168.1.42:3000:tcp" }
+    }
+  }
+}
+```
+
+  </TabItem>
+  <TabItem label="Claude Code (CLI)">
+
+```bash
+# Serial
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+
+# WiFi TCP
+claude mcp add mcpu -e DEVICES=mydevice:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+
+Verify: `claude mcp list`
+
+  </TabItem>
+  <TabItem label="Gemini CLI">
+
+```bash
+# Serial
+gemini mcp add -e SERIAL_PORT=/dev/ttyACM0 mcpu npx mcpu-client
+
+# WiFi TCP
+gemini mcp add -e DEVICES=mydevice:192.168.1.42:3000:tcp mcpu npx mcpu-client
+```
+
+Verify: `gemini mcp list`
+
+  </TabItem>
+  <TabItem label="OpenCode">
+
+Edit `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": { "SERIAL_PORT": "/dev/ttyACM0" }
+    }
+  }
+}
+```
+
+For WiFi TCP, use `"DEVICES": "mydevice:192.168.1.42:3000:tcp"` instead.
+
+Verify: `opencode mcp list`
+
+  </TabItem>
+</Tabs>
+
+Restart your agent. It's now connected to the MCU.
+
+---
+
+## Step 3 — Try It
+
+Open your AI agent and try these commands:
+
+> Turn on the LED on pin 2
+
+> Read the sensor on pin 34
+
+> What devices are connected?
+
+The agent will call the appropriate MCP tools automatically. Behind the scenes, the client discovers all available tools from the firmware at startup — no hardcoded names.
+
+---
+
+## Verify with MCP Inspector
+
+To test without an AI agent:
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+Open the browser URL shown and try calling `list_devices` or `gpio_write`.
+
+---
+
+## Next Steps
+
+- [Add a custom sensor](/how-to/add-sensor) — wrap BME280, MPU6050, or any sensor library
+- [Connect multiple devices](/how-to/multi-device-setup) — manage a fleet of MCUs
+- [Debug connection issues](/meta/troubleshooting) — common errors and fixes
+- [Firmware API Reference](/reference/firmware-api) — the complete `McpDevice` API

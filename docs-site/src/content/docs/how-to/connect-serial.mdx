@@ -1,0 +1,210 @@
+---
+title: Connect via Serial (USB)
+description: How to connect your MCU to MCP/U via USB serial port.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+USB Serial is the simplest way to connect your MCU to MCP/U. It works with any Arduino-compatible board and requires no network configuration.
+
+---
+
+## Finding Your Serial Port
+
+1. **Connect your board** via USB
+
+2. **Find the port** using the commands below for your operating system:
+
+<Tabs>
+<TabItem label="Linux">
+```bash
+ls /dev/ttyUSB* /dev/ttyACM*
+```
+
+Typical output: `/dev/ttyUSB0` or `/dev/ttyACM0`
+</TabItem>
+<TabItem label="macOS">
+```bash
+ls /dev/tty.usbserial-* /dev/ttyUSB*
+```
+
+Typical output: `/dev/cu.usbserial-1420` or `/dev/cu.usbserial-*`
+</TabItem>
+<TabItem label="Windows">
+Open **Device Manager** → **Ports (COM & LPT)**
+
+Typical output: `COM3`, `COM4`, etc.
+</TabItem>
+</Tabs>
+
+:::tip
+If you see multiple ports and aren't sure which one is your board, unplug it, run the command again, then plug it back in and note which port appears.
+:::
+
+---
+
+## Linux: Fix Permission Issues
+
+On Linux, you may get a "Permission denied" error when accessing the serial port. This is because only members of the `dialout` group can access serial devices.
+
+<Steps>
+
+1. **Add your user to the dialout group**
+
+   ```bash
+   sudo usermod -aG dialout $USER
+   ```
+
+2. **Log out and log back in** (or reboot)
+
+3. **Verify membership**
+
+   ```bash
+   groups | grep dialout
+   ```
+
+</Steps>
+
+:::caution
+You must log out and back in for the group change to take effect. Simply opening a new terminal won't work.
+:::
+
+---
+
+## Configuring the Agent
+
+Once you know your serial port, configure your AI agent:
+
+<Tabs>
+<TabItem label="Claude Desktop">
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+**Config file location:**
+- Linux: `~/.config/claude/claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+</TabItem>
+<TabItem label="Claude Code">
+```bash
+claude mcp add mcpu -e SERIAL_PORT=/dev/ttyACM0 -- npx mcpu-client
+```
+</TabItem>
+<TabItem label="Gemini CLI">
+Edit `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+</TabItem>
+<TabItem label="OpenCode">
+Edit `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "SERIAL_PORT": "/dev/ttyACM0"
+      }
+    }
+  }
+}
+```
+
+:::note
+OpenCode uses `"environment"` (not `"env"`) and `"command"` must be an array.
+:::
+</TabItem>
+</Tabs>
+
+---
+
+## Custom Baud Rate
+
+The default baud rate is `115200`. If your project uses a different rate:
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 SERIAL_BAUD=9600 npx mcpu-client
+```
+
+In agent config:
+
+```json
+"env": {
+  "SERIAL_PORT": "/dev/ttyACM0",
+  "SERIAL_BAUD": "9600"
+}
+```
+
+---
+
+## Multiple Serial Devices
+
+For more than one serial device, use the `DEVICES` format:
+
+```bash
+DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 npx mcpu-client
+```
+
+Format: `id:port:baud`
+
+See [Multi-Device Setup](/how-to/multi-device-setup/) for full details.
+
+---
+
+## Common Issues
+
+### Device Not Appearing
+
+- **Check the USB cable** — some charge-only cables don't carry data
+- **Try a different USB port** — some ports may not provide enough power
+- **Check if it's detected**: `ls /dev/tty*` before and after plugging in
+
+### Wrong Baud Rate
+
+If you see garbled output in Serial Monitor, verify the baud rate matches what your firmware uses (default `115200`).
+
+### Port In Use
+
+Another application may be holding the port:
+
+```bash
+# Linux
+lsof /dev/ttyACM0
+```
+
+Close any other Serial Monitor instances or Arduino IDE upload windows.
+
+---
+
+## Next Steps
+
+- [Add a Sensor or Peripheral](/how-to/add-sensor/) — wrap sensors in custom tools
+- [Connect via WiFi TCP](/how-to/connect-wifi-tcp/) — for wireless connections
+- [Debug Connection Issues](/how-to/debug-connection/) — troubleshooting guide
