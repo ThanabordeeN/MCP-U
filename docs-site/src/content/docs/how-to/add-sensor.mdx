@@ -1,0 +1,219 @@
+---
+title: Add a Sensor or Peripheral
+description: How to wrap sensor libraries as custom tools in MCP/U firmware.
+---
+
+import { CardGrid, Card } from '@astrojs/starlight/components';
+
+The recommended pattern for any sensor or peripheral is to wrap it in a custom tool. Your firmware handles all the hardware complexity — the AI sees only clean, named results.
+
+:::tip
+Any Arduino-compatible library works with MCP/U. If there's a library for it, you can expose it as a tool!
+:::
+
+---
+
+## The Pattern
+
+Every sensor follows the same pattern:
+
+1. **Initialize** the sensor in `setup()` (begin, configure pins, etc.)
+2. **Create** a handler function that reads from the sensor
+3. **Register** the tool with `mcp.add_tool()`
+
+```cpp
+void setup() {
+  // 1. Initialize the sensor
+  sensor.begin();
+  
+  // 2. Register the tool
+  mcp.add_tool("read_sensor", "Description", handle_read_sensor);
+  
+  mcp.begin(Serial, 115200);
+}
+
+void handle_read_sensor(int id, JsonObject params) {
+  // 3. Read and return data
+  JsonDocument res;
+  res["result"]["value"] = sensor.read();
+  mcp.send_result(id, res);
+}
+```
+
+---
+
+## BME280 (Temperature / Humidity / Pressure)
+
+```cpp
+#include <MCP-U.h>
+#include <Adafruit_BME280.h>
+
+McpDevice mcp("weather-node", "1.0.0");
+Adafruit_BME280 bme;
+
+void handle_read_bme280(int id, JsonObject params) {
+  JsonDocument res;
+  res["result"]["temperature"] = bme.readTemperature();
+  res["result"]["humidity"]    = bme.readHumidity();
+  res["result"]["pressure"]    = bme.readPressure() / 100.0F;
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  bme.begin(0x76);
+  mcp.add_tool("read_bme280", "Read temperature (°C), humidity (%), pressure (hPa)", handle_read_bme280);
+  mcp.begin(Serial, 115200);
+}
+```
+
+**Install library:** PlatformIO → `lib_deps = adafruit/Adafruit BME280 Library`
+
+---
+
+## MPU6050 (Gyroscope / Accelerometer)
+
+```cpp
+#include <MCP-U.h>
+#include <MPU6050_light.h>
+
+McpDevice mcp("motion-node", "1.0.0");
+MPU6050 mpu(Wire);
+
+void handle_read_motion(int id, JsonObject params) {
+  mpu.update();
+  JsonDocument res;
+  res["result"]["angle_x"] = mpu.getAngleX();
+  res["result"]["angle_y"] = mpu.getAngleY();
+  res["result"]["angle_z"] = mpu.getAngleZ();
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  Wire.begin(21, 22);  // ESP32 default I2C pins
+  mpu.begin();
+  mcp.add_tool("read_motion", "Read gyroscope angles (degrees)", handle_read_motion);
+  mcp.begin(Serial, 115200);
+}
+```
+
+**Install library:** PlatformIO → `lib_deps = electronicsleep/MPU6050_light`
+
+---
+
+## SSD1306 OLED Display
+
+```cpp
+#include <MCP-U.h>
+#include <Adafruit_SSD1306.h>
+
+McpDevice mcp("display-node", "1.0.0");
+Adafruit_SSD1306 display(128, 64, &Wire);
+
+void handle_show_text(int id, JsonObject params) {
+  const char* text = params["text"] | "";
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println(text);
+  display.display();
+
+  JsonDocument res;
+  res["result"]["ok"] = true;
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  mcp.add_tool("show_text", "Display text on OLED screen", handle_show_text);
+  mcp.begin(Serial, 115200);
+}
+```
+
+**Install library:** PlatformIO → `lib_deps = adafruit/Adafruit SSD1306`
+
+---
+
+## LCD 16x4 (I2C)
+
+```cpp
+#include <MCP-U.h>
+#include <LiquidCrystal_I2C.h>
+
+McpDevice mcp("lcd-node", "1.0.0");
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+
+void handle_show_text(int id, JsonObject params) {
+  int row = params["row"] | 0;
+  int col = params["col"] | 0;
+  lcd.setCursor(col, row);
+  lcd.print(params["text"].as<const char*>());
+
+  JsonDocument res;
+  res["result"]["ok"] = true;
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  Wire.begin(21, 22);  // ESP32 default I2C pins
+  lcd.init();
+  lcd.backlight();
+  mcp.add_tool("show_text", "Write text to LCD (params: text, row=0, col=0)", handle_show_text);
+  mcp.begin(Serial, 115200);
+}
+```
+
+**Install library:** PlatformIO → `lib_deps = marcoschwartz/LiquidCrystal_I2C`
+
+---
+
+## Adding Parameters
+
+Most sensors can accept parameters for configuration:
+
+```cpp
+void handle_read_distance(int id, JsonObject params) {
+  int samples = params["samples"] | 3;  // default 3 samples
+  
+  long total = 0;
+  for (int i = 0; i < samples; i++) {
+    total += ultrasonic.read();
+    delay(10);
+  }
+  
+  JsonDocument res;
+  res["result"]["distance"] = total / samples;
+  res["result"]["unit"] = "cm";
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  // ...
+  mcp.add_tool("read_distance", "Read distance (param: samples=3)", handle_read_distance);
+}
+```
+
+---
+
+## Common Patterns
+
+<CardGrid>
+<Card title="I2C Sensors">
+Use `Wire.begin(sda, scl)` to set custom I2C pins before `sensor.begin()`. ESP32 defaults are GPIO 21 (SDA) and GPIO 22 (SCL).
+</Card>
+<Card title="SPI Sensors">
+Initialize SPI in setup, then pass the SPI object to your sensor's begin method.
+</Card>
+<Card title="Multiple Readings">
+Average multiple samples for more stable readings. Use `params["key"] | default` for optional parameters.
+</Card>
+<Card title="Error Handling">
+Return meaningful error messages: `mcp.send_error(id, -32602, "Invalid parameter")`
+</Card>
+</CardGrid>
+
+---
+
+## Next Steps
+
+- [Your First Custom Tool](/tutorials/first-custom-tool/) — learn the basics
+- [Debug Connection Issues](/how-to/debug-connection/) — troubleshooting
+- [Firmware Guide](/guides/firmware/) — full API reference

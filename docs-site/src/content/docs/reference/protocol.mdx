@@ -5,7 +5,7 @@ description: MCP/U JSON-RPC 2.0 wire protocol specification v1.0.
 
 ## Overview
 
-MCP/U uses **JSON-RPC 2.0** over a **newline-delimited stream** (Serial, TCP, or Bluetooth). Each message is a single JSON object terminated by `\n`.
+MCP/U uses **JSON-RPC 2.0** over a **newline-delimited stream** (Serial or TCP). Each message is a single JSON object terminated by `\n`.
 
 ---
 
@@ -15,7 +15,6 @@ MCP/U uses **JSON-RPC 2.0** over a **newline-delimited stream** (Serial, TCP, or
 |-----------|-------|
 | **Serial UART** | Primary. 115200 baud default. |
 | **TCP (WiFi)** | MCU listens on a configurable port. |
-| **Bluetooth** | BluetoothSerial (ESP32 Classic BT). |
 | **Framing** | Each message ends with `\n`. No embedded newlines. |
 
 ---

@@ -3,12 +3,26 @@ title: Architecture
 description: System architecture, data flow, and design rationale for MCP/U.
 ---
 
+## What Problem Does This Architecture Solve?
+
+Traditional microcontroller toolchains require hardcoded integrations — every new sensor, actuator, or custom capability on your MCU requires manual client-side code changes. If you add a temperature sensor to your ESP32, you must update your AI agent's tool definitions. If you swap out the sensor for a different model with a different API, you update the client again. This creates a brittle, high-maintenance relationship between firmware and AI agents.
+
+MCP/U solves this by making the **firmware self-describing**. The microcontroller advertises its capabilities at runtime — what pins it has, what tools it supports, what parameters each tool accepts. The client never hardcodes tool names. Adding a new tool to firmware is automatic; the AI agent discovers it without any client changes.
+
+This architecture is designed for:
+- **Zero-config tool addition** — add firmware code, restart client, tools appear
+- **Multi-device management** — one client manages ESP32, Arduino, sensors, all unified
+- **Transport flexibility** — works over USB serial or WiFi TCP
+- **AI-first design** — tools are discovered, not declared; schemas are generated, not written
+
+---
+
 ## System Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                     AI / LLM Host                        │
-│  (Claude Desktop, Claude Code, Gemini CLI, OpenCode...)  │
+│  (Claude Desktop, Claude Code, Gemini CLI, OpenCode...) │
 └────────────────────────┬─────────────────────────────────┘
                          │  MCP Protocol (stdio)
                          ▼
@@ -128,9 +142,61 @@ Claude receives result
 | Decision | Rationale |
 |----------|-----------|
 | UART-first transport | Lowest latency, no network stack, works when WiFi is unavailable |
-| Arduino `Stream` abstraction | One firmware API works for Serial, WiFiClient, BluetoothSerial |
+| Arduino `Stream` abstraction | One firmware API works for Serial and WiFiClient |
 | JSON-RPC 2.0 | Standard protocol with error codes, ID tracking, tooling support |
 | Self-describing firmware | Client never hardcodes tool names — adding firmware tools is automatic |
 | Zod schemas from JSON Schema | MCP SDK requires Zod; firmware returns JSON Schema — thin bridge needed |
 | `device_id` as Zod literal | Prevents Claude from calling wrong device, no runtime lookup needed |
 | `SERIAL_PORT` env var | Simplest config for single-device use — one line to connect |
+
+---
+
+## Security Model
+
+MCP/U is designed for **local, trusted environments**. The protocol does NOT provide:
+
+- **Authentication** — Any client that can open the serial port or connect to the TCP port can call any tool. There is no username/password, token, or key exchange.
+
+- **Encryption** — All data is transmitted in plaintext. Serial traffic is visible to any process with port access; TCP traffic is visible on the network.
+
+- **Transport encryption** — TLS/SSL is not implemented. WiFi connections are unencrypted by default.
+
+- **Authorization** — All discovered tools are available to all clients. There is no per-tool or per-pin access control.
+
+- **Firmware verification** — There is no code signing or integrity check. Any client can flash or modify firmware.
+
+:::caution[When NOT to use MCP/U]
+Do not expose MCP/U devices directly to the internet. Do not use in multi-tenant environments where untrusted clients may access the same serial port or network. Use behind a firewall, on an isolated network, or in a local-only setup.
+:::
+
+### Recommended Security Practices
+
+- Run MCP/U on isolated networks (not exposed to the internet)
+- Use USB serial for highest security (physical access required)
+- If using WiFi, use a separate VLAN or firewall rules
+- Keep the serial port accessible only to the user running the client
+- Do not leave serial monitors or debug tools open that could interfere
+
+---
+
+## Comparison with Alternatives
+
+### MQTT
+
+MQTT is a pub/sub protocol designed for IoT cloud connectivity. It requires a broker (e.g., Mosquitto, AWS IoT), adds ~3KB library overhead, and is overkill for single-device local control. MCP/U is simpler: no broker, no subscription management, direct device-to-client communication.
+
+### HTTP REST
+
+REST APIs on microcontrollers require more RAM for parsing, lack standardized error codes (each implementation varies), and typically require manual documentation of endpoints. MCP/U's JSON-RPC 2.0 is more compact and self-documenting via `list_tools`.
+
+### gRPC
+
+gRPC requires Protocol Buffers, adds significant overhead (~50KB+ for the stack), and is impractical for AVR-class devices with 2KB RAM. MCP/U's JSON-RPC over UART works on Uno-class boards.
+
+| Feature | MCP/U | MQTT | HTTP REST | gRPC |
+|---------|-------|------|-----------|------|
+| RAM footprint | ~20KB | ~3KB | ~5KB | ~50KB+ |
+| Works on AVR | Yes | Borderline | No | No |
+| Self-describing | Yes | No | No | Partial |
+| Transport | Serial/TCP | TCP | TCP | TCP |
+| Protocol | JSON-RPC 2.0 | Pub/Sub | REST | Protobuf |

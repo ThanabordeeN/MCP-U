@@ -7,18 +7,18 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 
 ### Supported Boards
 
-| Board / Platform | Serial | WiFi TCP | Bluetooth | PWM | ADC |
-|-----------------|:------:|:--------:|:---------:|:---:|:---:|
-| ESP32 (all variants) | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
-| ESP32-S2 | ✅ | ✅ | ❌ | ✅ | ✅ |
-| ESP32-S3 | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
-| ESP32-C3 | ✅ | ✅ | ✅ BLE Serial | ✅ | ✅ |
-| ESP8266 (NodeMCU) | ✅ | ✅ | ❌ | ✅ | ✅ |
-| Arduino Uno (AVR) | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
-| Arduino Mega (AVR) | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
-| Arduino Nano | ✅ | ❌ | ❌ | ⚠️ limited pins | ✅ |
-| RP2040 (Pico) | ✅ | ⚠️ Pico W | ❌ | ✅ | ✅ |
-| STM32 (Arduino core) | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Board / Platform | Serial | WiFi TCP | PWM | ADC |
+|-----------------|:------:|:--------:|:---:|:---:|
+| ESP32 (all variants) | ✅ | ✅ | ✅ | ✅ |
+| ESP32-S2 | ✅ | ✅ | ✅ | ✅ |
+| ESP32-S3 | ✅ | ✅ | ✅ | ✅ |
+| ESP32-C3 | ✅ | ✅ | ✅ | ✅ |
+| ESP8266 (NodeMCU) | ✅ | ✅ | ✅ | ✅ |
+| Arduino Uno (AVR) | ✅ | ❌ | ⚠️ limited pins | ✅ |
+| Arduino Mega (AVR) | ✅ | ❌ | ⚠️ limited pins | ✅ |
+| Arduino Nano | ✅ | ❌ | ⚠️ limited pins | ✅ |
+| RP2040 (Pico) | ✅ | ⚠️ Pico W | ✅ | ✅ |
+| STM32 (Arduino core) | ✅ | ❌ | ✅ | ✅ |
 
 **Legend:** ✅ Fully supported · ⚠️ Partial / limited · ❌ Not available
 
@@ -28,7 +28,7 @@ description: Supported boards, platforms, Node.js versions, and known limitation
 
 #### ESP32 (Full Support)
 - All 4 pin types: `digital_output`, `digital_input`, `pwm_output`, `adc_input`
-- All 3 transports: Serial, WiFiClient, BluetoothSerial
+- Both transports: Serial and WiFiClient
 - `pwm_write` uses `analogWrite` (5 kHz default) — use custom LEDC tool for other frequencies
 - Up to 32 pins / 32 tools (configurable via `MCP_MAX_PINS`, `MCP_MAX_TOOLS`)
 

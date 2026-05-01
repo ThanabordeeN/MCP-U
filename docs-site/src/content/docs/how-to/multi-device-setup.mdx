@@ -1,0 +1,189 @@
+---
+title: Multi-Device Setup
+description: How to connect and manage multiple MCU devices with MCP/U.
+---
+
+import { CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
+
+MCP/U supports connecting multiple devices simultaneously. Each device gets a unique ID that's used to prefix all its tools, preventing name collisions.
+
+---
+
+## Device Configuration Format
+
+The `DEVICES` environment variable accepts a comma-separated list of devices:
+
+| Transport | Format | Example |
+|-----------|--------|---------|
+| Serial | `id:port:baud` | `robot:/dev/ttyUSB0:115200` |
+| TCP | `id:host:port:tcp` | `sensor:192.168.1.42:3000:tcp` |
+
+### Examples
+
+```bash
+# Two serial devices
+DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200
+
+# Serial + TCP mixed
+DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp
+
+# Multiple TCP devices
+DEVICES=esp1:192.168.1.10:3000:tcp,esp2:192.168.1.11:3000:tcp
+```
+
+---
+
+## Tool Namespacing
+
+When multiple devices are connected, tool names are prefixed with the device ID:
+
+| Scenario | Tool name format | Example |
+|----------|-----------------|---------|
+| Single device | `{tool_name}` | `gpio_write` |
+| Multiple devices | `{device_id}__{tool_name}` | `robot__gpio_write` |
+
+So if you have a `robot` device and a `display` device:
+- `robot__gpio_write`
+- `robot__hello`
+- `display__gpio_write`
+- `display__show_text`
+
+---
+
+## Configuration Examples
+
+<Tabs>
+<TabItem label="Claude Desktop">
+**Serial + TCP mixed:**
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+**Config file location:**
+- Linux: `~/.config/claude/claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+</TabItem>
+<TabItem label="Claude Code">
+```bash
+claude mcp add mcpu -e DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+</TabItem>
+<TabItem label="Gemini CLI">
+Edit `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+</TabItem>
+<TabItem label="OpenCode">
+Edit `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+:::note
+OpenCode uses `"environment"` (not `"env"`) and `"command"` must be an array.
+:::
+</TabItem>
+</Tabs>
+
+---
+
+## Practical Examples
+
+### Robot Arm + Display
+
+Imagine a robot arm on `/dev/ttyUSB0` and an OLED display on `/dev/ttyACM0`:
+
+```bash
+DEVICES=arm:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200
+```
+
+Tools available:
+- `arm__gpio_write`
+- `arm__adc_read`
+- `arm__move_servo`
+- `display__show_text`
+- `display__clear`
+
+### Weather Station + Gateway
+
+A weather sensor connected via WiFi and a serial gateway:
+
+```bash
+DEVICES=sensor:192.168.1.50:3000:tcp,gateway:/dev/ttyUSB0:115200
+```
+
+---
+
+## Setting Device IDs in Firmware
+
+When you create your `McpDevice`, give it a unique ID that matches your configuration:
+
+```cpp
+McpDevice mcp("robot", "1.0.0");  // This becomes the device ID
+```
+
+Make sure the ID in your firmware matches the ID in your `DEVICES` string!
+
+---
+
+## Best Practices
+
+<CardGrid>
+<Card title="Use Descriptive IDs">
+Choose IDs that describe the device: `robot`, `display`, `sensor`, `weather-station` — not `dev1`, `dev2`.
+</Card>
+<Card title="Consistent Naming">
+Keep the same ID across restarts. If you restart and the ID changes, your agent's tool calls will break.
+</Card>
+<Card title="Mix Freely">
+Serial and TCP can be combined in any configuration. There's no limit on mixing.
+</Card>
+<Card title="Check Tool List">
+Use MCP Inspector or call `list_tools` to verify all devices are connected and tools are properly namespaced.
+</Card>
+</CardGrid>
+
+---
+
+## Next Steps
+
+- [Connect via Serial](/how-to/connect-serial/) — single serial device
+- [Connect via WiFi TCP](/how-to/connect-wifi-tcp/) — single TCP device
+- [Debug Connection Issues](/how-to/debug-connection/) — troubleshooting

@@ -1,4 +1,25 @@
 
 export default new Map([
-["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")]]);
+["src/content/docs/explanation/architecture.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fexplanation%2Farchitecture.mdx&astroContentModuleFlag=true")],
+["src/content/docs/explanation/design-philosophy.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fexplanation%2Fdesign-philosophy.mdx&astroContentModuleFlag=true")],
+["src/content/docs/explanation/dynamic-discovery.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fexplanation%2Fdynamic-discovery.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/add-sensor.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fadd-sensor.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/configure-agent.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fconfigure-agent.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/connect-serial.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fconnect-serial.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/connect-wifi-tcp.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fconnect-wifi-tcp.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/debug-connection.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fdebug-connection.mdx&astroContentModuleFlag=true")],
+["src/content/docs/how-to/multi-device-setup.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fhow-to%2Fmulti-device-setup.mdx&astroContentModuleFlag=true")],
+["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")],
+["src/content/docs/meta/changelog.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fmeta%2Fchangelog.mdx&astroContentModuleFlag=true")],
+["src/content/docs/meta/contributing.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fmeta%2Fcontributing.mdx&astroContentModuleFlag=true")],
+["src/content/docs/meta/troubleshooting.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fmeta%2Ftroubleshooting.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/build-flags.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fbuild-flags.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/cli-commands.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fcli-commands.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/client-config.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fclient-config.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/compatibility.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fcompatibility.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/firmware-api.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Ffirmware-api.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/pin-types.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fpin-types.mdx&astroContentModuleFlag=true")],
+["src/content/docs/reference/protocol.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Freference%2Fprotocol.mdx&astroContentModuleFlag=true")],
+["src/content/docs/tutorials/first-custom-tool.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Ftutorials%2Ffirst-custom-tool.mdx&astroContentModuleFlag=true")],
+["src/content/docs/tutorials/getting-started.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Ftutorials%2Fgetting-started.mdx&astroContentModuleFlag=true")]]);
 		

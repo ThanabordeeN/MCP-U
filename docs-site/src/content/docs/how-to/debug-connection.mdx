@@ -1,0 +1,254 @@
+---
+title: Debug Connection Issues
+description: Troubleshooting guide for common MCP/U connection problems.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+This guide covers the most common connection issues and how to resolve them.
+
+---
+
+## Serial Connection Issues
+
+### "Permission Denied" on Linux
+
+**Symptom:** `Error: Permission denied /dev/ttyACM0`
+
+**Cause:** Your user isn't in the `dialout` group.
+
+<Steps>
+
+1. Add your user to the dialout group:
+   ```bash
+   sudo usermod -aG dialout $USER
+   ```
+
+2. **Log out and log back in** (or reboot)
+
+3. Verify:
+   ```bash
+   groups | grep dialout
+   ```
+
+</Steps>
+
+:::caution
+You must log out and back in for the group change to take effect.
+:::
+
+---
+
+### Device Not Appearing
+
+**Symptom:** `/dev/ttyUSB*` or `/dev/ttyACM*` doesn't show your device
+
+**Causes and solutions:**
+
+| Cause | Solution |
+|-------|----------|
+| Charge-only USB cable | Use a data-capable USB cable |
+| USB port issue | Try a different USB port |
+| Board not powered | Check the board's power LED |
+| Driver missing (Windows) | Install CH340/CP2102 driver |
+
+**Check if device is detected:**
+```bash
+# Before plugging in
+ls /dev/tty* > before.txt
+# Plug in device
+ls /dev/tty* > after.txt
+diff before.txt after.txt
+```
+
+---
+
+### Wrong Baud Rate
+
+**Symptom:** Garbled output in Serial Monitor, or client can't communicate
+
+**Solution:** Verify the baud rate matches your firmware:
+
+```cpp
+// Default is 115200
+mcp.begin(Serial, 115200);
+```
+
+In client config:
+```json
+"env": {
+  "SERIAL_PORT": "/dev/ttyACM0",
+  "SERIAL_BAUD": "115200"
+}
+```
+
+---
+
+### Port Already In Use
+
+**Symptom:** `Error: Port is in use` or `Resource busy`
+
+**Check what's using the port:**
+
+```bash
+# Linux
+lsof /dev/ttyACM0
+
+# macOS
+lsof /dev/cu.usbserial-*
+```
+
+**Common culprits:**
+- Arduino IDE Serial Monitor
+- PlatformIO Device Monitor
+- Another terminal with serial open
+
+**Solution:** Close all other serial connections and try again.
+
+---
+
+## WiFi TCP Connection Issues
+
+### Connection Refused
+
+**Symptom:** `Error: connect ECONNREFUSED` or `Connection refused`
+
+**Causes and solutions:**
+
+| Cause | Solution |
+|-------|----------|
+| Wrong IP address | Check Serial Monitor for correct IP |
+| ESP32 not running server | Verify "TCP server listening on port 3000" in Serial Monitor |
+| Wrong port | Default is 3000, check your firmware |
+| Firewall blocking | Temporarily disable firewall or add exception |
+
+**Verify ESP32 is listening:**
+```bash
+# Check if port is open
+nc -z 192.168.1.42 3000
+```
+
+---
+
+### Can't Find ESP32 IP
+
+**Symptom:** Don't know the ESP32's IP address
+
+**Solution:** Open Serial Monitor after boot — the ESP32 prints:
+
+```
+Connecting to WiFi.....
+IP: 192.168.1.42
+TCP server listening on port 3000
+```
+
+:::tip
+If you need a static IP, configure it in your firmware:
+```cpp
+IPAddress staticIP(192, 168, 1, 100);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+WiFi.config(staticIP, gateway, subnet);
+```
+:::
+
+---
+
+### Not on Same Network
+
+**Symptom:** Connection times out
+
+**Solution:** Ensure your computer and ESP32 are on the same local network (same WiFi router). Corporate networks may isolate devices.
+
+---
+
+### Firewall Blocking
+
+**Symptom:** Connection works from another device but not your computer
+
+**Solution:**
+- **Linux:** `sudo ufw allow 3000/tcp`
+- **macOS:** System Settings → Network → Firewall → Allow incoming connections
+- **Windows:** Windows Defender Firewall → Allow an app through firewall
+
+---
+
+## ESP32-Specific Issues
+
+### Not Responding After Flash
+
+**Symptom:** ESP32 doesn't respond to commands after uploading new firmware
+
+**Cause:** Some ESP32 boards reset when the USB connection is opened (DTR), which can interfere with the first connection.
+
+**Solution:** Wait before connecting:
+
+```bash
+# Wait 2 seconds after flash
+sleep 2 && npx mcpu-client
+```
+
+Or in your agent config, add a startup delay.
+
+---
+
+### Tool Not Found
+
+**Symptom:** `Method not found` or tool doesn't appear in list
+
+**Causes:**
+
+| Cause | Solution |
+|-------|----------|
+| Tool not registered | Add `mcp.add_tool()` in `setup()` before `mcp.begin()` |
+| Client not restarted | Restart the client after flashing new firmware |
+| Wrong device ID | Verify device ID matches in `DEVICES` config |
+
+**Debug with MCP Inspector:**
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+Open the browser URL and call `list_tools` to see what the firmware actually exposes.
+
+---
+
+## Using MCP Inspector for Debugging
+
+MCP Inspector is the best tool for debugging MCP/U connections:
+
+```bash
+# Serial
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+
+# TCP
+DEVICES=mydevice:192.168.1.42:3000:tcp npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+### What to check in Inspector
+
+1. **Call `get_info`** — verifies device is responding
+2. **Call `list_tools`** — shows all available tools
+3. **Call a simple tool** like `gpio_read` — tests basic functionality
+4. **Check for errors** — look at the response JSON for error fields
+
+---
+
+## Quick Diagnostic Checklist
+
+- [ ] Device is powered (check LED)
+- [ ] Correct serial port / IP address
+- [ ] Correct baud rate (115200 default)
+- [ ] No other app using the port
+- [ ] Linux: user in `dialout` group
+- [ ] TCP: same network as ESP32
+- [ ] Client restarted after firmware flash
+- [ ] Device ID matches in `DEVICES` config
+
+---
+
+## Next Steps
+
+- [Connect via Serial](/how-to/connect-serial/) — detailed serial setup
+- [Connect via WiFi TCP](/how-to/connect-wifi-tcp/) — detailed TCP setup
+- [Multi-Device Setup](/how-to/multi-device-setup/) — multiple MCUs

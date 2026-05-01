@@ -1,15 +1,9 @@
 ---
-title: Connecting to CLI Agents
-description: Add MCP/U to Claude Code, Gemini CLI, and OpenCode using the correct config for each tool.
----
-
-Once your MCP/U client is running, connect it to any MCP-compatible CLI agent.
-
+title: CLI Commands Reference
+description: Reference for all CLI agent configuration commands.
 ---
 
 ## Claude Code
-
-**Official docs**: [code.claude.com/docs/en/mcp](https://code.claude.com/docs/en/mcp)
 
 ### Add via CLI (recommended)
 
@@ -18,7 +12,7 @@ Once your MCP/U client is running, connect it to any MCP-compatible CLI agent.
 claude mcp add --env SERIAL_PORT=/dev/ttyACM0 mcpu -- npx mcpu-client
 ```
 
-**WiFi TCP** (replace IP with the one your ESP32 printed to Serial Monitor):
+**WiFi TCP:**
 ```bash
 claude mcp add --env DEVICES=mydevice:192.168.1.42:3000:tcp mcpu -- npx mcpu-client
 ```
@@ -69,8 +63,6 @@ Or inside a Claude Code session: `/mcp`
 
 ## Gemini CLI
 
-**Official docs**: [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
-
 ### Add via CLI (recommended)
 
 **Serial:**
@@ -78,7 +70,7 @@ Or inside a Claude Code session: `/mcp`
 gemini mcp add -e SERIAL_PORT=/dev/ttyACM0 mcpu npx mcpu-client
 ```
 
-**WiFi TCP** (replace IP with the one your ESP32 printed to Serial Monitor):
+**WiFi TCP:**
 ```bash
 gemini mcp add -e DEVICES=mydevice:192.168.1.42:3000:tcp mcpu npx mcpu-client
 ```
@@ -126,8 +118,6 @@ Or inside a session: `/mcp`
 ---
 
 ## OpenCode
-
-**Official docs**: [opencode.ai/docs/mcp-servers](https://opencode.ai/docs/mcp-servers/)
 
 OpenCode has no CLI add command — edit `opencode.json` directly.
 
@@ -177,13 +167,7 @@ opencode mcp list
 
 ---
 
-## Summary
-
-| | Serial | WiFi TCP |
-|--|--------|----------|
-| **Env var** | `SERIAL_PORT=/dev/ttyACM0` | `DEVICES=id:IP:port:tcp` |
-| **Windows serial** | `SERIAL_PORT=COM3` | same TCP format |
-| **Multi-device** | `DEVICES=a:/dev/ttyUSB0:115200,b:/dev/ttyACM0:115200` | `DEVICES=a:192.168.1.42:3000:tcp,b:192.168.1.43:3000:tcp` |
+## Comparison Summary
 
 | | Claude Code | Gemini CLI | OpenCode |
 |--|-------------|------------|----------|
@@ -195,7 +179,7 @@ opencode mcp list
 
 ---
 
-## Finding your serial port
+## Finding Serial Port
 
 | OS | Typical port |
 |----|-------------|

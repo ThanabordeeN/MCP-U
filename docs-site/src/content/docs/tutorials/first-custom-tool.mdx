@@ -1,0 +1,289 @@
+---
+title: Your First Custom Tool
+description: A step-by-step tutorial for creating your first custom tool on MCP/U.
+---
+
+import { Steps, CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
+
+In this tutorial, you'll create a custom tool from scratch that lets your AI agent interact with your ESP32 in meaningful ways. By the end, you'll understand the pattern for building any custom functionality.
+
+## What is a Custom Tool?
+
+A custom tool is a user-defined function that runs on your MCU and can be called by any AI agent connected via MCP. While MCP/U provides built-in tools like `gpio_write` and `adc_read`, custom tools let you:
+
+- Wrap sensor readings in clean, semantic responses
+- Create complex behaviors (motor control, display output, etc.)
+- Expose any Arduino library to AI control
+
+:::tip
+Any Arduino library works with MCP/U. If there's a library for it, you can expose it as a tool!
+:::
+
+---
+
+## Step 1: Set Up Your Project
+
+<Steps>
+
+1. **Install PlatformIO** (or use Arduino IDE)
+
+   If using PlatformIO, create a new project:
+
+   ```bash
+   pio project init -d ~/esp32-project -e esp32dev
+   cd ~/esp32-project
+   ```
+
+2. **Add MCP-U library**
+
+   In `platformio.ini`, add:
+
+   ```ini
+   lib_deps =
+     bblanchon/ArduinoJson @ ^7
+     ThanabordeeN/MCP-U_Arduino @ ^1.1.0
+   ```
+
+3. **Create your sketch**
+
+   Create `src/main.cpp`:
+
+   ```cpp
+   #include <MCP-U.h>
+
+   McpDevice mcp("my-first-tool", "1.0.0");
+
+   void setup() {
+     Serial.begin(115200);
+     mcp.begin(Serial, 115200);
+   }
+
+   void loop() {
+     mcp.loop();
+   }
+   ```
+
+4. **Flash to your ESP32**
+
+   ```bash
+   pio run -t upload
+   ```
+
+</Steps>
+
+:::note
+This basic sketch exposes no pins or tools yet — we'll add them in the next step.
+:::
+
+---
+
+## Step 2: Register a Simple Tool
+
+Let's create a "hello world" tool that returns a greeting when called.
+
+<Steps>
+
+1. **Define the handler function**
+
+   Add this above `setup()`:
+
+   ```cpp
+   void handle_hello(int id, JsonObject params) {
+     JsonDocument res;
+     res["result"]["message"] = "Hello from ESP32!";
+     res["result"]["device"] = "my-first-tool";
+     mcp.send_result(id, res);
+   }
+   ```
+
+2. **Register the tool in setup()**
+
+   ```cpp
+   void setup() {
+     Serial.begin(115200);
+     mcp.add_tool("hello", "Returns a greeting message", handle_hello);
+     mcp.begin(Serial, 115200);
+   }
+   ```
+
+3. **Flash and test**
+
+   ```bash
+   pio run -t upload
+   ```
+
+</Steps>
+
+---
+
+## Step 3: Test with MCP Inspector
+
+The easiest way to verify your tool works is with MCP Inspector:
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+<Tabs>
+<TabItem label="Linux">
+```bash
+# Find your port first
+ls /dev/ttyUSB* /dev/ttyACM*
+```
+</TabItem>
+<TabItem label="macOS">
+```bash
+ls /dev/tty.usbserial-*
+```
+</TabItem>
+<TabItem label="Windows">
+Device Manager → Ports (COM & LPT)
+</TabItem>
+</Tabs>
+
+Then run:
+
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+
+Open the browser URL shown, find `hello` in the tool list, and call it. You should see:
+
+```json
+{
+  "message": "Hello from ESP32!",
+  "device": "my-first-tool"
+}
+```
+
+:::tip
+MCP Inspector is your best friend for debugging. Use it whenever something isn't working!
+:::
+
+---
+
+## Step 4: Add Parameters
+
+Now let's make the tool accept input. We'll create a personalized greeting tool.
+
+<Steps>
+
+1. **Update the handler**
+
+   ```cpp
+   void handle_greet(int id, JsonObject params) {
+     const char* name = params["name"].as<const char*>();
+     
+     // Default if no name provided
+     if (!name || strlen(name) == 0) {
+       name = "Stranger";
+     }
+
+     JsonDocument res;
+     res["result"]["message"] = "Hello, " + String(name) + "!";
+     res["result"]["name"] = name;
+     mcp.send_result(id, res);
+   }
+   ```
+
+2. **Register with a description that explains parameters**
+
+   ```cpp
+   void setup() {
+     Serial.begin(115200);
+     mcp.add_tool("greet", "Greet a person by name (param: name)", handle_greet);
+     mcp.begin(Serial, 115200);
+   }
+   ```
+
+3. **Flash and test**
+
+   ```bash
+   pio run -t upload
+   ```
+
+   Now call `greet` with `{"name": "Alice"}`:
+
+   ```json
+   {
+     "message": "Hello, Alice!",
+     "name": "Alice"
+   }
+   ```
+
+</Steps>
+
+---
+
+## Complete Example
+
+Here's the full `main.cpp` with both tools:
+
+```cpp
+#include <MCP-U.h>
+
+McpDevice mcp("my-first-tool", "1.0.0");
+
+// Tool 1: Simple greeting (no params)
+void handle_hello(int id, JsonObject params) {
+  JsonDocument res;
+  res["result"]["message"] = "Hello from ESP32!";
+  res["result"]["device"] = "my-first-tool";
+  mcp.send_result(id, res);
+}
+
+// Tool 2: Personalized greeting (with params)
+void handle_greet(int id, JsonObject params) {
+  const char* name = params["name"].as<const char*>();
+  
+  if (!name || strlen(name) == 0) {
+    name = "Stranger";
+  }
+
+  JsonDocument res;
+  res["result"]["message"] = "Hello, " + String(name) + "!";
+  res["result"]["name"] = name;
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Register both tools
+  mcp.add_tool("hello", "Returns a greeting message", handle_hello);
+  mcp.add_tool("greet", "Greet a person by name (param: name)", handle_greet);
+  
+  mcp.begin(Serial, 115200);
+}
+
+void loop() {
+  mcp.loop();
+}
+```
+
+---
+
+## Wrap Up
+
+You've created your first custom tools! Here's what you learned:
+
+<CardGrid>
+<Card title="Handler Pattern">
+  Define a function with signature `void handler(int id, JsonObject params)` that calls `mcp.send_result(id, res)` on success or `mcp.send_error(id, code, message)` on failure.
+</Card>
+<Card title="Registration">
+  Use `mcp.add_tool("name", "description", handler)` in `setup()` before `mcp.begin()`.
+</Card>
+<Card title="Parameters">
+  Access params with `params["key"].as<Type>()` — use `|` for defaults like `params["name"] | "default"`.
+</Card>
+<Card title="Testing">
+  Use MCP Inspector to test tools before connecting an AI agent.
+</Card>
+</CardGrid>
+
+### Next Steps
+
+- Add a sensor — see [Add a Sensor or Peripheral](/how-to/add-sensor/)
+- Connect via WiFi — see [Connect via WiFi TCP](/how-to/connect-wifi-tcp/)
+- Set up multiple devices — see [Multi-Device Setup](/how-to/multi-device-setup/)

@@ -1,0 +1,236 @@
+---
+title: Connect via WiFi TCP
+description: How to connect your ESP32 to MCP/U wirelessly over WiFi TCP.
+---
+
+import { Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+WiFi TCP lets your ESP32 connect without a USB cable. The MCU acts as a TCP server on your local network, and the client connects by IP address and port.
+
+---
+
+## When to Use TCP vs Serial
+
+| | Serial (USB) | WiFi TCP |
+|--|-------------|----------|
+| Cable required | Yes | No |
+| Board support | All | ESP32 / ESP8266 |
+| Setup complexity | Minimal | Requires WiFi credentials |
+| Best for | Development, debugging | Deployment, wireless control |
+| Latency | Lower | Slightly higher |
+
+---
+
+## Step 1: Flash WiFi Firmware
+
+Edit the credentials in your sketch before uploading:
+
+```cpp
+#include <WiFi.h>
+#include <MCP-U.h>
+
+static const char*    WIFI_SSID     = "YOUR_SSID";
+static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
+static const uint16_t TCP_PORT      = 3000;
+
+McpDevice  mcp("esp32-wifi", "1.0.0");
+WiFiServer server(TCP_PORT);
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+
+  mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Onboard LED");
+  mcp.add_pin(5,  "buzzer", MCP_DIGITAL_OUTPUT, "Piezo Buzzer");
+  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor");
+
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());   // note this IP for the client
+
+  server.begin();
+}
+
+void loop() {
+  // Accept new client if none is connected
+  if (!client || !client.connected()) {
+    WiFiClient incoming = server.accept();
+    if (incoming) {
+      client = incoming;
+      mcp.begin(client);   // swap the MCP stream to the TCP connection
+    }
+  }
+  mcp.loop();
+}
+```
+
+<Steps>
+
+1. Replace `YOUR_SSID` and `YOUR_PASSWORD` with your WiFi credentials
+
+2. Flash to your ESP32:
+   ```bash
+   pio run -t upload
+   ```
+
+3. **Open Serial Monitor** — the ESP32 prints its IP address on boot:
+   ```
+   Connecting to WiFi.....
+   IP: 192.168.1.42
+   TCP server listening on port 3000
+   ```
+
+4. **Note that IP address** — you'll need it for the client configuration
+
+</Steps>
+
+:::tip
+The IP address is printed every time the ESP32 boots. If you ever need to reconnect and don't know the IP, open Serial Monitor.
+:::
+
+---
+
+## Step 2: Configure the Agent
+
+Use the IP address from the Serial Monitor output. The format is `id:host:port:tcp`.
+
+<Tabs>
+<TabItem label="Claude Desktop">
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+**Config file location:**
+- Linux: `~/.config/claude/claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+</TabItem>
+<TabItem label="Claude Code">
+```bash
+claude mcp add mcpu -e DEVICES=mydevice:192.168.1.42:3000:tcp -- npx mcpu-client
+```
+</TabItem>
+<TabItem label="Gemini CLI">
+Edit `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+</TabItem>
+<TabItem label="OpenCode">
+Edit `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "mcpu": {
+      "type": "local",
+      "command": ["npx", "mcpu-client"],
+      "enabled": true,
+      "environment": {
+        "DEVICES": "mydevice:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+:::note
+OpenCode uses `"environment"` (not `"env"`) and `"command"` must be an array.
+:::
+</TabItem>
+</Tabs>
+
+---
+
+## Mixing Serial and TCP
+
+You can connect both serial devices and TCP devices simultaneously:
+
+```json
+{
+  "mcpServers": {
+    "mcpu": {
+      "command": "npx",
+      "args": ["mcpu-client"],
+      "env": {
+        "DEVICES": "robot:/dev/ttyUSB0:115200,sensor:192.168.1.42:3000:tcp"
+      }
+    }
+  }
+}
+```
+
+Format: `id:port:baud` (serial) or `id:host:port:tcp` (TCP), comma-separated.
+
+---
+
+## Troubleshooting
+
+### Can't Connect
+
+- **Verify IP address** — open Serial Monitor and check the IP printed
+- **Same network** — client and ESP32 must be on the same local network
+- **Check firewall** — some firewalls block local TCP connections
+
+### Wrong IP
+
+The ESP32's IP may change if your DHCP lease expires. To use a static IP:
+
+```cpp
+IPAddress staticIP(192, 168, 1, 100);
+IPAddress gateway(192, 168, 1, 1);
+IPAddress subnet(255, 255, 255, 0);
+
+WiFi.config(staticIP, gateway, subnet);
+WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+```
+
+### Connection Refused
+
+- Verify the ESP32 is running the TCP server (`TCP server listening on port 3000`)
+- Check the port matches (default `3000`)
+- Ensure no firewall is blocking the connection
+
+### ESP32 Not Responding After Flash
+
+Some ESP32 boards reset when the USB connection is opened (DTR). Wait 600ms after flashing before connecting:
+
+```bash
+sleep 2 && npx mcpu-client
+```
+
+---
+
+## Next Steps
+
+- [Multi-Device Setup](/how-to/multi-device-setup/) — connect multiple ESP32s
+- [Add a Sensor or Peripheral](/how-to/add-sensor/) — wrap sensors in custom tools
+- [Debug Connection Issues](/how-to/debug-connection/) — troubleshooting guide

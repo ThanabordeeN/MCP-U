@@ -1,0 +1,151 @@
+---
+title: Design Philosophy
+description: Design principles, trade-offs, and the philosophy behind MCP/U.
+---
+
+## Core Principles
+
+MCP/U is built on five interconnected design principles that guide every architectural decision:
+
+### 1. Stream Abstraction
+
+The firmware operates on Arduino's `Stream` interface — a generic abstraction for any character-based input/output. This means one firmware binary works for Serial (USB-UART) and WiFiClient (TCP), and any other Stream-backed transport.
+
+The client mirrors this with `BaseTransport` — a shared abstraction for Serial and TCP. Adding a new transport (e.g., WebSocket, LoRa) requires implementing the same interface without changing tool logic.
+
+### 2. Self-Describing Firmware
+
+Tools are not hardcoded in the client. The firmware advertises capabilities at runtime via `list_tools`. This is the key to zero-config tool addition — adding a sensor to your ESP32 requires no client changes.
+
+### 3. Minimal API Surface
+
+The protocol has only 8 methods: 2 introspection (`get_info`, `list_tools`) and 6 built-in operations (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`). Custom tools are registered via a simple function signature. There are no sub-methods, no nested objects, no complex state machines.
+
+### 4. Transport Agnosticism
+
+The protocol does not assume Serial, TCP, or any particular transport. JSON-RPC 2.0 over newline-delimited text works equally well over any byte stream. This allows the same firmware to work over USB or WiFi without code changes.
+
+### 5. RAM-Conscious Design
+
+Every design decision is checked against microcontroller constraints. Schemas are flat (no nested objects), strings are bounded, and buffers are sized appropriately for 2KB-16KB devices.
+
+---
+
+## Why UART-First
+
+The default transport is UART (Serial over USB). This is a deliberate choice, not a limitation:
+
+- **Lowest latency** — USB-UART has sub-millisecond round-trip times. WiFi adds 10-100ms.
+- **No network stack** — ESP32's WiFi stack consumes ~40KB RAM. Serial needs none.
+- **Works offline** — No router, no network, no problem. The device works in a basement, a field, an airplane.
+- **Simpler debugging** — Serial output is readable; WiFi requires network tools.
+- **Physical access** — USB requires physical presence; WiFi can be remote.
+
+WiFi TCP is available as a secondary transport for cases where the device must be remote, but Serial remains the primary, most reliable option.
+
+:::tip[Best practice]
+Start with Serial for development. Switch to WiFi only when you need remote access.
+:::
+
+---
+
+## Why JSON-RPC 2.0
+
+We evaluated alternatives:
+
+- **REST** — Requires more RAM for parsing (method parsing, URL routing), lacks standardized error codes, and each implementation differs. Overkill for single-endpoint MCU control.
+- **Raw binary** — Compact but hard to debug, no standard tooling, error-prone to implement.
+- **WebSocket** — Adds framing overhead, requires more RAM than plain TCP.
+- **MQTT** — Requires a broker, adds ~3KB library overhead, pub/sub model doesn't fit request-response.
+
+JSON-RPC 2.0 wins because:
+- **Industry standard** — Well-documented, widely implemented
+- **Error codes** — `-32600` to `-32700` are consistent across implementations
+- **ID tracking** — Request/response matching is built-in
+- **Tooling** — JSON parsers are available everywhere, easy to debug
+- **Compact** — Minimal framing, just `{"jsonrpc": "2.0", "id": N, ...}`
+
+The newline delimiter (`\n`) is simpler than Content-Length headers or chunked encoding — perfect for microcontroller serial buffers.
+
+---
+
+## Why Dynamic Discovery
+
+The alternative is hardcoded tools: the client knows `gpio_write` exists because we wrote it that way. This is fragile:
+
+- Adding a new tool requires client code changes
+- Different firmware versions have different tools
+- Multi-device is complex (which device has which tools?)
+- Custom tools are impossible without client updates
+
+Dynamic discovery flips this: the firmware declares what it has, the client adapts. The firmware is the source of truth for its own capabilities.
+
+This is particularly powerful for:
+- **Rapid prototyping** — Add a sensor, see it in Claude immediately
+- **Firmware versioning** — Tools can change between versions without client changes
+- **Custom tools** — User-registered tools appear automatically
+- **Device diversity** — One client handles ESP32, Arduino, different sensor configurations
+
+---
+
+## Trade-off: RAM Constraints on AVR
+
+AVR-class boards (Uno, Mega, Nano) have ~2KB SRAM. This forces design compromises:
+
+- **Flatter schemas** — No nested objects, no arrays in JSON Schema
+- **Smaller buffers** — `MCP_SERIAL_BUFFER` defaults to 256 bytes on AVR vs 512 on ESP32
+- **Fewer pins/tools** — `MCP_MAX_PINS=8`, `MCP_MAX_TOOLS=8` on AVR
+- **No JSON Schema on custom tools** — Built-in tools have fallback schemas; custom tools omit schema to save heap
+- **Integer millivolts** — `adc_read` returns `mv` (integer) instead of `volts` (float) to avoid softfloat
+
+:::caution[Uno is tight]
+Arduino Uno with ArduinoJson v7 is at the edge of viability. Use Mega if you need more headroom, or ESP32 for comfortable operation.
+:::
+
+These constraints are handled automatically — the library detects AVR and adjusts defaults. You can override with build flags if needed.
+
+---
+
+## Trade-off: Synchronous loop()
+
+Arduino's `loop()` is single-threaded and blocking. There is no async/await, no event loop, no threading.
+
+This means:
+- **Blocking I/O** — `Serial.read()` waits until data arrives
+- **No concurrent requests** — Only one JSON-RPC call processed at a time
+- **No callbacks** — Tool handlers execute synchronously
+
+This is a fundamental constraint of the platform, not a limitation of MCP/U. For most GPIO/sensor use cases, this is fine — operations are microsecond-scale.
+
+:::note[Future consideration]
+ESP32 supports FreeRTOS with tasks. A future version could run the MCP server on a separate core, enabling non-blocking operation. For now, the synchronous model keeps the API simple and predictable.
+:::
+
+---
+
+## The 4-Command Mental Model
+
+Despite the flexibility, MCP/U has a simple mental model — just 4 concepts to understand:
+
+| Command | Purpose |
+|---------|---------|
+| `add_pin()` | Register a GPIO pin with a name and type |
+| `add_tool()` | Register a custom tool with a handler function |
+| `begin()` | Initialize the MCP device on a Stream |
+| `loop()` | Call `device.loop()` in Arduino's loop() to process requests |
+
+Everything else — Serial, WiFi, custom sensors — is just choosing which Stream to pass to `begin()`.
+
+```cpp
+// Minimal example
+McpDevice device;
+device.add_pin(2, "led", DIGITAL_OUTPUT);
+device.add_pin(34, "sensor", ADC_INPUT);
+device.begin(Serial);
+
+void loop() {
+  device.loop();
+}
+```
+
+This simplicity is intentional. The goal is to make microcontroller-to-AI integration accessible without deep protocol knowledge.

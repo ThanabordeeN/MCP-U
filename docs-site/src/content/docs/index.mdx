@@ -26,7 +26,7 @@ import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
     Devices auto-declare their tools via JSON Schema. The client registers tools dynamically — zero hardcoded names.
   </Card>
   <Card title="Universal Transport" icon="random">
-    Serial, WiFi (TCP), and Bluetooth — one library, one API, any Arduino `Stream`.
+    Serial and WiFi (TCP) — one library, one API, any Arduino `Stream`.
   </Card>
   <Card title="Minimalist Integration" icon="pencil">
     Just `add_pin()`, `add_tool()`, `begin()`. No protocol complexity in your sketch.
@@ -110,12 +110,12 @@ Every device running MCP/U exposes these tools automatically:
 ---
 
 <CardGrid>
-  <Card title="Firmware Guide →" icon="open-book">
-    Install the MCP-U library and learn the full API.
-    [Get started](/guides/firmware/)
+  <Card title="Firmware API →" icon="open-book">
+    The complete `McpDevice` API: pins, tools, transport, and error handling.
+    [Read reference](/reference/firmware-api)
   </Card>
-  <Card title="Client Guide →" icon="setting">
-    Set up the TypeScript MCP client and connect to Claude.
-    [Get started](/guides/client/)
+  <Card title="Client Setup →" icon="setting">
+    Configure the TypeScript MCP client for any AI agent.
+    [Read guide](/reference/client-config)
   </Card>
 </CardGrid>

@@ -1,0 +1,58 @@
+---
+title: Changelog
+description: Version history and release notes for MCP/U.
+---
+
+All notable changes to MCP/U are documented in this file.
+
+:::note[Maintenance]
+This project is currently maintained at [https://github.com/ThanabordeeN/mcpu](https://github.com/ThanabordeeN/mcpu). Please refer to the GitHub repository for the latest releases and updates.
+:::
+
+---
+
+## v1.0.0 — Initial Release
+
+*Released: 2025-05-01*
+
+### Added
+
+- **MCP-U Firmware Library** (`McpIot`)
+  - JSON-RPC 2.0 protocol implementation over Arduino `Stream`
+  - Built-in tools: `get_info`, `list_tools`, `gpio_write`, `gpio_read`, `pwm_write`, `adc_read`
+  - Custom tool registration via `McpDevice::registerTool()`
+  - Pin registry with type support (`digital_output`, `digital_input`, `pwm_output`, `adc_input`)
+  - JSON Schema generation for all tools
+
+- **Transport Support**
+  - Serial (UART) — primary transport, USB-UART
+  - TCP (WiFi) — ESP32 WiFiClient server mode
+
+- **Client (`mcpu-client`)**
+  - TypeScript MCP server implementation
+  - Dynamic tool discovery via `list_tools`
+  - JSON Schema to Zod conversion at runtime
+  - Multi-device support with device ID prefixing
+  - Serial and TCP transport abstraction
+
+- **Platform Support**
+  - ESP32 (all variants) — full support
+  - ESP8266 — full support
+  - Arduino AVR (Uno, Mega, Nano) — limited RAM support
+  - RP2040 (Pico) — experimental
+
+- **Documentation**
+  - Starlight documentation site
+  - Architecture reference
+  - Protocol specification
+  - Client setup guides
+  - Firmware development guide
+  - Compatibility matrix
+
+### Known Limitations
+
+- No authentication or encryption (local-only use)
+- No hot-plug reconnection (restart client to reconnect)
+- AVR boards omit JSON Schema for custom tools (memory constraints)
+- No nested objects or arrays in JSON Schema (RAM constraints)
+- No WebSocket or mDNS support in v1.0
