@@ -118,6 +118,69 @@ export default defineConfig({
           tag: 'meta',
           attrs: { property: 'og:image', content: '/og.png' },
         },
+        {
+          tag: 'script',
+          content: `
+            (function() {
+              var MERMAID_CDN = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+              var loaded = false;
+              var queue = [];
+
+              function loadMermaid(cb) {
+                if (window.mermaid) return cb();
+                queue.push(cb);
+                if (loaded) return;
+                loaded = true;
+                var s = document.createElement('script');
+                s.src = MERMAID_CDN;
+                s.onload = function() {
+                  mermaid.initialize({ startOnLoad: false });
+                  queue.forEach(function(fn) { fn(); });
+                  queue = [];
+                };
+                s.onerror = function() {
+                  console.warn('[mermaid] Failed to load from CDN');
+                  queue = [];
+                };
+                document.head.appendChild(s);
+              }
+
+              function renderDiagrams() {
+                var blocks = document.querySelectorAll('div.expressive-code pre[data-language="mermaid"] code');
+                if (blocks.length === 0) return;
+                loadMermaid(function() {
+                  blocks.forEach(function(codeBlock) {
+                    var figure = codeBlock.closest('div.expressive-code');
+                    if (!figure || figure.dataset.mermaidRendered) return;
+                    figure.dataset.mermaidRendered = 'true';
+                    var code = codeBlock.textContent || '';
+                    var wrapper = document.createElement('div');
+                    wrapper.className = 'mermaid-diagram';
+                    var id = 'm-' + Math.random().toString(36).substring(2, 11);
+                    mermaid.render(id, code).then(function(result) {
+                      wrapper.innerHTML = result.svg;
+                      figure.replaceWith(wrapper);
+                    }).catch(function(err) {
+                      wrapper.innerHTML = '<div class="mermaid-error"><p>Diagram render error</p><pre>' + err.message.replace(/</g, '&lt;') + '</pre></div>';
+                      figure.replaceWith(wrapper);
+                    });
+                  });
+                });
+              }
+
+              function schedule() {
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', renderDiagrams);
+                } else {
+                  renderDiagrams();
+                }
+              }
+
+              schedule();
+              document.addEventListener('astro:after-swap', renderDiagrams);
+            })();
+          `,
+        },
       ],
     }),
   ],

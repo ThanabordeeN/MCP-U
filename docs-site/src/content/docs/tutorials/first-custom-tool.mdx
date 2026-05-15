@@ -291,16 +291,19 @@ The idea: the MCU fills a circular buffer in `loop()` at a high sample rate. A c
 
 **What happens at runtime:**
 
-```
-Firmware                    Client                        Memory DB
-   │                           │                              │
-   │  loop() fills buffer       │                              │
-   │  every 200 ms             │                              │
-   │                           │── auto-poll read_touch ──►   │
-   │◄─ read_touch() ──────────►│                              │
-   │── {type:"buffer", ...} ──►│── expandBufferSamples ──────►│
-   │                           │   (infers timestamps)        │── rows written
-   │                           │                              │
+```mermaid
+sequenceDiagram
+    participant Firmware
+    participant Client
+    participant MemoryDB as Memory DB
+
+    loop every 200ms
+        Firmware->>Firmware: loop() fills buffer
+    end
+    Client->>Firmware: auto-poll read_touch
+    Firmware-->>Client: {type:"buffer", ...}
+    Client->>MemoryDB: expandBufferSamples<br/>(infers timestamps)
+    Note over MemoryDB: rows written
 ```
 
 The client reconstructs exact timestamps for each sample using `receivedAt - (n * interval_ms)`. Buffer data lands in `mcp_u_observations` so the AI can query history: "what was the average touch value over the past hour?"

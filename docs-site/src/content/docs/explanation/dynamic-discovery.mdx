@@ -18,23 +18,17 @@ This means:
 
 ## Step-by-Step Discovery Sequence
 
-```
-┌─────────────┐                              ┌─────────────┐
-│   Client    │                              │    MCU      │
-│             │                              │             │
-│  connect()  │─────── Serial/TCP ─────────►│  (listens)  │
-│             │                              │             │
-│  get_info() │────────────────────────────►│             │
-│             │◄───── {device, version,      │             │
-│             │        platform, pin_count}  │             │
-│             │                              │             │
-│  list_tools │────────────────────────────►│             │
-│             │◄───── {tools[], pins[]}       │             │
-│             │                              │             │
-│  (register  │   (for each tool:            │             │
-│   MCP tools)│    convert schema,           │             │
-│             │    register handler)         │             │
-└─────────────┘                              └─────────────┘
+```mermaid
+sequenceDiagram
+    participant Client
+    participant MCU
+
+    Client->>MCU: connect() (Serial/TCP)
+    Client->>MCU: get_info()
+    MCU-->>Client: {device, version, platform, pin_count}
+    Client->>MCU: list_tools()
+    MCU-->>Client: {tools[], pins[]}
+    Note over Client: For each tool:<br/>convert schema, register handler
 ```
 
 ### 1. Connect

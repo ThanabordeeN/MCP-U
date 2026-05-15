@@ -144,6 +144,40 @@ a {
 }
 
 
+/* ── Mermaid Diagrams ──────────────────────────────────────── */
+
+.mermaid-diagram {
+  margin: 1.5rem 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  border: 1px solid var(--sl-color-red, #dc2626);
+  border-radius: 8px;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--sl-color-red, #dc2626) 8%, transparent);
+  color: var(--sl-color-red, #dc2626);
+  font-size: var(--sl-text-sm);
+}
+
+.mermaid-error p {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.mermaid-error pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: var(--sl-text-xs);
+}
+
 /* ── Selection ─────────────────────────────────────────────── */
 
 ::selection {

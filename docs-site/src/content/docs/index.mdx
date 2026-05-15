@@ -40,11 +40,14 @@ import { Card, CardGrid, Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## How It Works
 
-```
-┌─────────────────┐        ┌──────────────────────┐        ┌───────────────┐
-│  Claude / LLM   │◄─MCP──►│  mcpu-client (npm)   │◄─────►│  MCU Firmware │
-│                 │  stdio │  Dynamic tool regist. │ Serial │  MCP-U lib   │
-└─────────────────┘        └──────────────────────┘   /TCP └───────────────┘
+```mermaid
+graph LR
+    A["Claude / LLM"]
+    B["mcpu-client (npm)<br/>Dynamic tool regist."]
+    C["MCU Firmware<br/>MCP-U lib"]
+
+    A <-->|"MCP (stdio)"| B
+    B <-->|"Serial / TCP"| C
 ```
 
 1. Client connects to MCU over Serial or TCP
