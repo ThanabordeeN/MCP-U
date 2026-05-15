@@ -1,0 +1,35 @@
+---
+title: Querying Memory with AI
+description: How to prompt AI agents to extract and analyze historical data from the SQLite Memory Subsystem.
+---
+
+One of the most powerful features of the MCP-U client is the ability to let AI models (like Claude or Gemini) query historical sensor data themselves. They do this using the `sql_readonly_query` tool.
+
+Here are some tips and example prompts for getting the most out of this feature.
+
+## 1. System Prompts & Context
+
+The AI doesn't automatically know your database structure. However, the client provides a resource at `mcu://cache/schema`.
+
+**Effective Prompt:**
+> "Read the schema at `mcu://cache/schema` to understand the database structure, then write an SQL query to find the average voltage over the last 10 minutes."
+
+## 2. Example Use Cases
+
+### Detecting Anomalies
+> "Using the `sql_readonly_query` tool, look at the `numeric_observations` view for the resource `voltage_feedback`. Are there any values above 3.5V in the last hour? If so, tell me exactly when they occurred."
+
+### Summarizing Tool Executions
+> "Query the `mcp_u_tool_calls` table and give me a summary of how many times the `set_led` tool failed versus succeeded today."
+
+### Poller Health Check
+> "Check the `buffer_drain_health` view. Are there any error counts for the buffer drains? Are we pulling data consistently?"
+
+## 3. SQL Safety
+
+The `sql_readonly_query` tool is equipped with a safeguard. It **only** permits `SELECT` and `WITH` statements. If an AI tries to run an `INSERT` or `DROP TABLE` command, the client will block the query and return an error.
+
+The tool also enforces a maximum row limit (default: 500) to prevent the AI context window from being overwhelmed by massive datasets.
+
+If the AI needs to process more data, prompt it to use SQL aggregations instead:
+> "Do not return all the raw data. Instead, write an SQL query that groups the data by hour and returns the `AVG(value_num)`."

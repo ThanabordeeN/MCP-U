@@ -29,10 +29,10 @@ export default defineConfig({
       title: 'MCP/U',
       description: 'The Unified Interface for AI-Ready Microcontrollers — by 2edge.co',
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/ThanabordeeN/mcpu' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/ThanabordeeN/MCP-U' },
       ],
       editLink: {
-        baseUrl: 'https://github.com/ThanabordeeN/mcpu/edit/main/docs-site/',
+        baseUrl: 'https://github.com/ThanabordeeN/MCP-U/edit/main/docs-site/',
       },
       sidebar: [
         {

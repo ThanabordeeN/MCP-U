@@ -16,12 +16,20 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import crypto from "crypto";
 import { DeviceManager } from "./device_manager.js";
 import {
   builtin_fallback_schema,
   json_schema_to_zod,
 } from "./schema_builder.js";
 import type { DeviceConfig } from "./transport.js";
+import {
+  config as memConfig,
+  SqliteMemoryStore,
+  BufferDrainPoller,
+  SqliteReadonlyAdapter,
+  BufferedPin,
+} from "./memory/index.js";
 
 // ---------------------------------------------------------------------------
 // Load device config
@@ -86,6 +94,112 @@ const all_devices = manager.list();
 const multi_device = all_devices.length > 1;
 
 // ---------------------------------------------------------------------------
+// Memory Subsystem
+// ---------------------------------------------------------------------------
+
+const sessionId = crypto.randomUUID();
+let memory: SqliteMemoryStore | null = null;
+let readonlyAdapter: SqliteReadonlyAdapter | null = null;
+let poller: BufferDrainPoller | null = null;
+let cleanupInterval: NodeJS.Timeout | null = null;
+
+if (memConfig.MEMORY_ENABLED) {
+  try {
+    memory = new SqliteMemoryStore();
+    await memory.connect();
+
+    await memory.writeSession({
+      session_id: sessionId,
+      started_at_ms: Date.now(),
+      client_version: "1.1.0",
+      memory_profile: "balanced",
+    });
+
+    for (const device of all_devices) {
+      await memory.writeDevice({
+        device_id: device.id,
+        session_id: sessionId,
+        device_name: device.info.device ?? "unknown",
+        firmware_version: device.info.version ?? "unknown",
+        platform: device.info.platform ?? "unknown",
+        transport_type: "unknown", // can be filled properly if tracking transport info
+        transport_address: "unknown",
+        discovered_at_ms: Date.now(),
+        info_json: JSON.stringify(device.info),
+      });
+
+      for (const pin of device.pins) {
+        await memory.writeResource({
+          resource_id: `${device.id}:${pin.name}`,
+          session_id: sessionId,
+          device_id: device.id,
+          resource_name: pin.name,
+          resource_type: pin.type,
+          direction: "unknown",
+          pin: pin.pin,
+          description: pin.description,
+          buffer_enabled: pin.capabilities?.buffer ? 1 : 0,
+          buffer_size: pin.sampling?.buffer_size ?? null,
+          sampling_interval_ms: pin.sampling?.interval_ms ?? null,
+          created_at_ms: Date.now(),
+        });
+      }
+    }
+
+    readonlyAdapter = new SqliteReadonlyAdapter(
+      memConfig.MEMORY_CONNECTION_URL.replace("sqlite:///", "")
+    );
+
+    if (memConfig.BUFFER_DRAIN_ENABLED) {
+      poller = new BufferDrainPoller(manager, memory, {
+        sessionId,
+        drainRatio: memConfig.BUFFER_DRAIN_RATIO,
+        minIntervalMs: memConfig.BUFFER_DRAIN_MIN_INTERVAL_MS,
+      });
+
+      const bufferedPins: BufferedPin[] = [];
+      for (const device of all_devices) {
+        for (const pin of device.pins) {
+          if (
+            pin.capabilities?.buffer &&
+            pin.sampling?.interval_ms &&
+            pin.sampling?.buffer_size
+          ) {
+            bufferedPins.push({
+              device_id: device.id,
+              resource_name: pin.name,
+              pin: pin.pin,
+              sample_interval_ms: pin.sampling.interval_ms,
+              buffer_size: pin.sampling.buffer_size,
+              drain_ratio: memConfig.BUFFER_DRAIN_RATIO,
+              drain_interval_ms: 0,
+            });
+          }
+        }
+      }
+
+      if (bufferedPins.length > 0) {
+        poller.start(bufferedPins);
+        process.stderr.write(
+          `[memory] Started poller for ${bufferedPins.length} buffered pins\n`
+        );
+      }
+    }
+
+    cleanupInterval = setInterval(async () => {
+      try {
+        await memory?.cleanup();
+      } catch (err) {
+        process.stderr.write(`[memory] Cleanup failed: ${(err as Error).message}\n`);
+      }
+    }, 60_000);
+  } catch (err) {
+    process.stderr.write(`[memory] Failed to initialize: ${(err as Error).message}\n`);
+    memory = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // MCP Server
 // ---------------------------------------------------------------------------
 
@@ -113,6 +227,126 @@ server.registerTool(
     ],
   }),
 );
+
+// ---------------------------------------------------------------------------
+// Memory tools
+// ---------------------------------------------------------------------------
+
+if (memory && readonlyAdapter) {
+  server.registerTool(
+    "sql_readonly_query",
+    {
+      description: "Allows LLM to query cached MCP-U memory using SELECT/WITH SQL only.",
+      inputSchema: z.object({
+        sql: z.string().describe("The readonly SQL query (SELECT/WITH only)."),
+        max_rows: z.number().optional().describe("Max rows to return (default 500)."),
+      }),
+    },
+    async (args: any) => {
+      try {
+        const result = await readonlyAdapter!.query(
+          args.sql,
+          args.max_rows ?? memConfig.SQL_MAX_ROWS
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ error: (err as Error).message }, null, 2),
+            },
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.registerTool(
+    "memory_status",
+    {
+      description: "Returns memory driver, retention, row count, poller status, and active buffered pins.",
+      inputSchema: z.object({}),
+    },
+    async () => {
+      const status = await memory!.getStatus();
+      return {
+        content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
+      };
+    }
+  );
+
+  server.registerResource(
+    "mcu-cache-schema",
+    "mcu://cache/schema",
+    {
+      mimeType: "text/plain",
+      description: "Database schema for MCP-U memory",
+    },
+    async () => {
+      const { schemaSQL } = await import("./memory/schema.js");
+      return {
+        contents: [
+          { uri: "mcu://cache/schema", mimeType: "text/plain", text: schemaSQL },
+        ],
+      };
+    }
+  );
+
+  server.registerResource(
+    "mcu-cache-status",
+    "mcu://cache/status",
+    {
+      mimeType: "application/json",
+      description: "Memory status and configuration",
+    },
+    async () => {
+      const status = await memory!.getStatus();
+      return {
+        contents: [
+          {
+            uri: "mcu://cache/status",
+            mimeType: "application/json",
+            text: JSON.stringify(status, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  server.registerResource(
+    "mcu-cache-examples",
+    "mcu://cache/examples",
+    {
+      mimeType: "text/plain",
+      description: "Example SQL queries for MCP-U memory",
+    },
+    async () => ({
+      contents: [
+        {
+          uri: "mcu://cache/examples",
+          mimeType: "text/plain",
+          text: `
+-- Latest Observations
+SELECT device_id, resource_name, value_num, unit, timestamp_ms
+FROM latest_observations LIMIT 20;
+
+-- Device Signal Summary
+SELECT device_id, resource_name, sample_count, min_value, max_value, avg_value
+FROM device_signal_summary ORDER BY sample_count DESC;
+
+-- Buffer Drain Health
+SELECT device_id, resource_name, drain_count, ok_count, error_count, avg_latency_ms, last_completed_at_ms
+FROM buffer_drain_health;
+          `.trim(),
+        },
+      ],
+    })
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Dynamic tool registration — one MCP tool per device×tool combo
@@ -151,11 +385,71 @@ for (const device of all_devices) {
       },
       async (args: Record<string, unknown>) => {
         const { device_id: _device_id, ...params } = args;
-        const result = await manager.call(
-          device.id,
-          tool.name,
-          params as Record<string, unknown>,
-        );
+        const started_at_ms = Date.now();
+        let resultJson: string | null = null;
+        let errorJson: string | null = null;
+        let status = "ok";
+        let result: unknown;
+
+        try {
+          result = await manager.call(
+            device.id,
+            tool.name,
+            params as Record<string, unknown>,
+          );
+          resultJson = JSON.stringify(result);
+          
+          // ADDITIONALS feature: custom tool buffer support opt-in
+          if (
+            memory && 
+            result && 
+            typeof result === "object" && 
+            (result as any).type === "buffer" && 
+            Array.isArray((result as any).values)
+          ) {
+            const bufRes = result as any;
+            const rows = (await import("./memory/buffer_expander.js")).expandBufferSamples({
+              values: bufRes.values,
+              receivedAtMs: Date.now(),
+              sampleIntervalMs: bufRes.sample_interval_ms ?? 1000,
+              sessionId,
+              deviceId: device.id,
+              resourceName: bufRes.resource ?? tool.name,
+              bufferBatchId: `custom_drain_${device.id}_${tool.name}_${Date.now()}`,
+            });
+            // Update source and observation_type
+            rows.forEach(r => {
+              r.source = `custom:${tool.name}`;
+              r.observation_type = "custom_buffer_drain";
+            });
+            await memory.writeObservations(rows);
+          }
+
+        } catch (err) {
+          status = "error";
+          errorJson = JSON.stringify({ message: (err as Error).message });
+          throw err;
+        } finally {
+          const completed_at_ms = Date.now();
+          if (memory) {
+            await memory.writeToolCall({
+              session_id: sessionId,
+              device_id: device.id,
+              tool_name: tool.name,
+              tool_kind: "builtin",
+              call_source: "llm",
+              params_json: JSON.stringify(params),
+              result_json: resultJson,
+              error_json: errorJson,
+              status,
+              latency_ms: completed_at_ms - started_at_ms,
+              started_at_ms,
+              completed_at_ms,
+              metadata_json: null,
+            });
+          }
+        }
+
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(result, null, 2) },
@@ -228,10 +522,16 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 
 process.on("SIGINT", () => {
+  if (cleanupInterval) clearInterval(cleanupInterval);
+  poller?.stop();
+  memory?.close();
   manager.close_all();
   process.exit(0);
 });
 process.on("SIGTERM", () => {
+  if (cleanupInterval) clearInterval(cleanupInterval);
+  poller?.stop();
+  memory?.close();
   manager.close_all();
   process.exit(0);
 });

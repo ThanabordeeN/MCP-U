@@ -8,22 +8,30 @@
 │  (Claude Desktop, Claude Code, any MCP-compatible host)  │
 └────────────────────────┬─────────────────────────────────┘
                          │  MCP Protocol (stdio / HTTP)
+                         │  (Calls to MCUs + SQL Queries)
                          ▼
 ┌──────────────────────────────────────────────────────────┐
 │               MCP-IoT Client (TypeScript)                │
 │                                                          │
-│  index.ts        — MCP Server, dynamic tool registration │
-│  transport.ts    — Serial / TCP transport abstraction    │
+│  index.ts          — MCP Server, dynamic tools, resources│
+│  transport.ts      — Serial / TCP / Mock abstraction     │
 │  device_manager.ts — Multi-device connection + discovery │
 │  schema_builder.ts — JSON Schema → Zod converter         │
-└───────┬───────────────────────┬────────────────────────--┘
-        │ Serial (UART)         │ TCP socket
-        ▼                       ▼
-┌───────────────┐     ┌─────────────────┐
-│ ESP32 #1      │     │ ESP32 #2 (WiFi) │
-│ MCP-U lib     │     │ MCP-U lib       │
-│ GPIO 2, 5, 34 │     │ GPIO 2, 13, 36  │
-└───────────────┘     └─────────────────┘
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ Memory Subsystem                                   │  │
+│  │ sqlite_memory_store.ts — DB setup & persistence    │  │
+│  │ buffer_drain_poller.ts — Automated buffer pulling  │  │
+│  │ sqlite_readonly_adapter.ts — Safe SQL execution    │  │
+│  └─────────────────────────────────┬──────────────────┘  │
+└───────┬───────────────────────┬────┼───────────────────--┘
+        │ Serial (UART)         │    │ Local SQLite DB
+        ▼                       ▼    ▼
+┌───────────────┐     ┌─────────────────┐    ┌─────────────────┐
+│ ESP32 #1      │     │ ESP32 #2 (WiFi) │    │ mcpu-memory.db  │
+│ MCP-U lib     │     │ MCP-U lib       │    │ (Historical)    │
+│ GPIO 2, 5, 34 │     │ GPIO 2, 13, 36  │    │                 │
+└───────────────┘     └─────────────────┘    └─────────────────┘
 ```
 
 ---
@@ -33,8 +41,8 @@
 ### Firmware (`MCP-U` library)
 
 - Listens on any Arduino `Stream` for newline-delimited JSON-RPC requests
-- Maintains a pin registry (type, name, description)
-- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`)
+- Maintains a pin registry (type, name, description, capabilities, sampling rates)
+- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `get_pin_buffer`, etc.)
 - Dispatches to user-registered custom tools
 - Sends `list_tools` discovery response including full JSON Schema for all tools
 
@@ -42,7 +50,8 @@
 
 - `SerialTransport` — wraps `serialport` library, ReadlineParser for `\n` framing
 - `TcpTransport` — wraps Node.js `net.Socket`, manual line buffering
-- Both share: pending promise map, request ID counter, timeout logic, disconnect event
+- `MockTransport` — simulates a connected device for testing without physical hardware
+- All share: pending promise map, request ID counter, timeout logic, disconnect event
 
 ### `device_manager.ts`
 
@@ -58,13 +67,20 @@
 - Handles `required` → optional fields
 - Intentionally minimal (flat schemas only)
 
+### `memory/` (Buffered Pull Memory Subsystem)
+
+- `sqlite_memory_store.ts` — Manages the SQLite database connection, schema, batch inserts, tool calls, and data retention cleanup.
+- `buffer_drain_poller.ts` — Identifies pins with `buffer: true` capabilities and dynamically calculates safe polling intervals to drain MCU ring buffers before they overflow.
+- `buffer_expander.ts` — Parses bulk buffer arrays from the MCU and infers timestamps for each sample.
+- `sqlite_readonly_adapter.ts` + `sql_guard.ts` — Provides a safe, restricted interface allowing the LLM to query historical observations using only `SELECT` or `WITH` SQL commands.
+
 ### `index.ts`
 
 - Loads device config (env var or `devices.json`)
-- Boots `DeviceManager`
-- Registers static meta-tool `list_devices`
+- Boots `DeviceManager` and `Memory Subsystem`
+- Registers static meta-tools `list_devices`, `sql_readonly_query`, and `memory_status`
 - Loops over all devices × all tools → `server.registerTool()` dynamically
-- Registers MCP Resources: `mcu://devices`, `mcu://{device_id}/pins`
+- Registers MCP Resources: `mcu://devices`, `mcu://{device_id}/pins`, `mcu://cache/*`
 
 ---
 

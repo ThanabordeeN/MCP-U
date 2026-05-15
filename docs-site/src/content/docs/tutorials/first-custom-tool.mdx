@@ -215,6 +215,48 @@ Now let's make the tool accept input. We'll create a personalized greeting tool.
 
 ---
 
+## Step 5: Returning Custom Buffers (Optional)
+
+MCP-U features a **Buffered Pull Memory** subsystem that stores historical sensor data in an SQLite database. You can opt-in to this feature from a custom tool by returning a specific JSON shape. If your tool returns `type: "buffer"`, the client will automatically parse the values as a time-series buffer and save them to the database!
+
+<Steps>
+
+1. **Create a buffer-returning handler**
+
+   ```cpp
+   void handle_custom_buffer(int id, JsonObject params) {
+     JsonDocument res;
+     
+     // Required fields to trigger the client's Buffer Drain Poller logic:
+     res["result"]["type"] = "buffer";
+     res["result"]["resource"] = "simulated_wave"; // Used as the metric name
+     res["result"]["sample_interval_ms"] = 100;    // Time between samples
+     
+     // Fill the buffer with data
+     JsonArray values = res["result"]["values"].to<JsonArray>();
+     values.add(1.2);
+     values.add(1.5);
+     values.add(1.8);
+     values.add(2.0);
+     
+     res["result"]["count"] = 4;
+     
+     mcp.send_result(id, res);
+   }
+   ```
+
+2. **Register the tool**
+
+   ```cpp
+   mcp.add_tool("get_wave", "Returns a custom buffered sine wave", handle_custom_buffer);
+   ```
+
+   When an AI agent calls `get_wave`, the client intercepts the `type: "buffer"` response, calculates the exact timestamps for all 4 values based on the `100ms` interval, and saves them into the `mcp_u_observations` SQLite table.
+
+</Steps>
+
+---
+
 ## Complete Example
 
 Here's the full `main.cpp` with both tools:

@@ -13,7 +13,7 @@ import { createConnection, Socket } from "net";
 
 export interface DeviceConfig {
   id: string;
-  transport: "serial" | "tcp";
+  transport: "serial" | "tcp" | "mock";
   // serial
   port?: string;
   baud?: number;
@@ -176,10 +176,110 @@ export class TcpTransport extends BaseTransport {
 }
 
 // ---------------------------------------------------------------------------
+// Mock transport (Virtual Testing)
+// ---------------------------------------------------------------------------
+
+export class MockTransport implements McpTransport {
+  private connected = false;
+  private disconnect_cb?: () => void;
+  private bufferPhase = 0;
+
+  async connect(): Promise<void> {
+    this.connected = true;
+  }
+
+  get is_connected(): boolean {
+    return this.connected;
+  }
+
+  on_disconnect(cb: () => void): void {
+    this.disconnect_cb = cb;
+  }
+
+  close(): void {
+    this.connected = false;
+    this.disconnect_cb?.();
+  }
+
+  async call(method: string, params: Record<string, unknown> = {}, timeout_ms = 5000): Promise<unknown> {
+    if (!this.connected) throw new Error("Mock transport not connected");
+    
+    // Simulate network latency
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    if (method === "get_info") {
+      return {
+        device: "Virtual Mock MCU",
+        version: "1.0.0-mock",
+        platform: "virtual",
+        pin_count: 40
+      };
+    }
+    
+    if (method === "list_tools") {
+      return {
+        tools: [
+          {
+            name: "set_led",
+            description: "Turn LED on or off",
+            inputSchema: {
+              type: "object",
+              properties: { state: { type: "boolean" } },
+              required: ["state"]
+            }
+          }
+        ],
+        pins: [
+          {
+            pin: 2,
+            name: "led",
+            type: "gpio",
+            description: "Onboard LED",
+            capabilities: { buffer: false },
+          },
+          {
+            pin: 34,
+            name: "voltage_feedback",
+            type: "adc",
+            description: "Simulated voltage sensor",
+            capabilities: { buffer: true },
+            sampling: { interval_ms: 100, buffer_size: 50 }
+          }
+        ]
+      };
+    }
+    
+    if (method === "get_pin_buffer") {
+      const pin = params.pin;
+      const limit = (params.limit as number) || 50;
+      if (pin === 34 || pin === "voltage_feedback") {
+        const values = [];
+        for (let i = 0; i < limit; i++) {
+          // Generate a simulated noisy sine wave
+          values.push(Number((3.3 + Math.sin(this.bufferPhase + i * 0.1) * 0.5 + (Math.random() * 0.1 - 0.05)).toFixed(3)));
+        }
+        this.bufferPhase += limit * 0.1;
+        return { values, count: limit };
+      }
+      throw new Error(`Buffer not supported for pin ${pin}`);
+    }
+
+    if (method === "set_led") {
+      return { success: true, state: params.state };
+    }
+
+    throw new Error(`Unknown method: ${method}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
 
 export function create_transport(cfg: DeviceConfig): McpTransport {
+  if (cfg.transport === "mock") {
+    return new MockTransport();
+  }
   if (cfg.transport === "tcp") {
     if (!cfg.host || !cfg.port_num) throw new Error(`Device ${cfg.id}: TCP transport requires host and port_num`);
     return new TcpTransport(cfg.host, cfg.port_num);
