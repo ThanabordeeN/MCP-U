@@ -117,16 +117,45 @@ Discovery endpoint. Returns all tools with JSON Schema + pin registry.
           },
           "required": ["pin", "value"]
         }
+      },
+      {
+        "name": "read_touch",
+        "description": "Read capacitive touch sensor buffer on GPIO4",
+        "inputSchema": { "type": "object", "properties": {}, "required": [] },
+        "polling": { "enabled": true, "interval_ms": 2000 }
       }
     ],
     "pins": [
       { "pin": 2,  "name": "led",    "type": "digital_output", "description": "Onboard LED" },
-      { "pin": 5,  "name": "buzzer", "type": "digital_output", "description": "Piezo Buzzer" },
-      { "pin": 34, "name": "sensor", "type": "adc_input",      "description": "Analog Sensor" }
+      {
+        "pin": 34, "name": "sensor", "type": "adc_input", "description": "Analog Sensor",
+        "capabilities": { "summary": true, "buffer": true, "events": false },
+        "sampling": { "interval_ms": 500, "buffer_size": 20 }
+      }
     ]
   }
 }
 ```
+
+#### `polling` field (custom tools)
+
+When a tool is registered with `McpPolling(ms)` in firmware, the `polling` object appears in its `list_tools` entry. The client reads this and auto-schedules periodic calls — no client-side configuration needed.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `polling.enabled` | boolean | Always `true` when present |
+| `polling.interval_ms` | integer | Suggested call interval in milliseconds |
+
+#### Pin `capabilities` and `sampling` fields
+
+Input pins registered with sampling options include extra metadata the client uses to configure automatic buffer draining.
+
+| Field | Description |
+|-------|-------------|
+| `capabilities.buffer` | Ring buffer is enabled |
+| `capabilities.summary` | Rolling statistics (min/max/avg) are enabled |
+| `sampling.interval_ms` | Milliseconds between samples |
+| `sampling.buffer_size` | Number of samples in the ring buffer |
 
 ---
 

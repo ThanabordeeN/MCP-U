@@ -115,8 +115,23 @@ The client has **zero hardcoded tool names**. On startup:
 2. Calls `get_info` + `list_tools` on each
 3. Converts firmware JSON Schema → Zod schemas at runtime
 4. Registers one MCP tool per firmware tool
+5. **Auto-configures polling** for any tool that declares `McpPolling(ms)` in firmware
 
 Adding a new tool to firmware = the MCP tool appears automatically on next client restart.
+
+### Firmware-Driven Auto-Polling
+
+When a tool is registered with `McpPolling(interval_ms)`, the firmware includes
+`"polling": {"enabled": true, "interval_ms": N}` in its `list_tools` response.
+The client reads this and schedules periodic calls automatically — **no env var required**.
+
+```cpp
+// Firmware — declare polling in the tool registration
+mcp.add_tool("read_sensor", "Read sensor buffer", handle_sensor, McpPolling(2000));
+```
+
+The client starts polling `read_sensor` every 2 seconds on its own. If the result
+contains `"type": "buffer"` data, observations are written to the memory database.
 
 ---
 

@@ -1,300 +1,44 @@
 ---
 title: Your First Custom Tool
-description: A step-by-step tutorial for creating your first custom tool on MCP/U.
+description: Learn the three core patterns for custom tools — on-demand reads, parameterized actions, and auto-polled sensor buffers.
 ---
 
-import { Steps, CardGrid, Card, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Steps, CardGrid, Card, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 
-In this tutorial, you'll create a custom tool from scratch that lets your AI agent interact with your ESP32 in meaningful ways. By the end, you'll understand the pattern for building any custom functionality.
+Custom tools are functions you write on the MCU that an AI agent can call by name. Unlike the built-in `gpio_write` / `adc_read` tools, custom tools let you wrap sensors, peripherals, and behaviors in clean, meaningful names.
 
-## What is a Custom Tool?
+There are three patterns that cover almost every use case:
 
-A custom tool is a user-defined function that runs on your MCU and can be called by any AI agent connected via MCP. While MCP/U provides built-in tools like `gpio_write` and `adc_read`, custom tools let you:
-
-- Wrap sensor readings in clean, semantic responses
-- Create complex behaviors (motor control, display output, etc.)
-- Expose any Arduino library to AI control
-
-:::tip
-Any Arduino library works with MCP/U. If there's a library for it, you can expose it as a tool!
-:::
+| Pattern | When to use |
+|---------|-------------|
+| **On-demand read** | AI asks for the current value (temperature, distance, etc.) |
+| **Parameterized action** | AI sends a command with arguments (set brightness, move servo) |
+| **Auto-polled buffer** | MCU accumulates samples continuously; client drains them on a schedule |
 
 ---
 
-## Step 1: Set Up Your Project
+## Setup
 
-<Steps>
+Add the library to `platformio.ini`:
 
-1. **Install PlatformIO** (or use Arduino IDE)
-
-   If using PlatformIO, create a new project:
-
-   ```bash
-   pio project init -d ~/esp32-project -e esp32dev
-   cd ~/esp32-project
-   ```
-
-2. **Add MCP-U library**
-
-   In `platformio.ini`, add:
-
-   ```ini
-   lib_deps =
-     bblanchon/ArduinoJson @ ^7
-     ThanabordeeN/MCP-U_Arduino @ ^1.1.0
-   ```
-
-3. **Create your sketch**
-
-   Create `src/main.cpp`:
-
-   ```cpp
-   #include <MCP-U.h>
-
-   McpDevice mcp("my-first-tool", "1.0.0");
-
-   void setup() {
-     Serial.begin(115200);
-     mcp.begin(Serial, 115200);
-   }
-
-   void loop() {
-     mcp.loop();
-   }
-   ```
-
-4. **Flash to your ESP32**
-
-   ```bash
-   pio run -t upload
-   ```
-
-</Steps>
-
-:::note
-This basic sketch exposes no pins or tools yet — we'll add them in the next step.
-:::
-
----
-
-## Step 2: Register a Simple Tool
-
-Let's create a "hello world" tool that returns a greeting when called.
-
-<Steps>
-
-1. **Define the handler function**
-
-   Add this above `setup()`:
-
-   ```cpp
-   void handle_hello(int id, JsonObject params) {
-     JsonDocument res;
-     res["result"]["message"] = "Hello from ESP32!";
-     res["result"]["device"] = "my-first-tool";
-     mcp.send_result(id, res);
-   }
-   ```
-
-2. **Register the tool in setup()**
-
-   ```cpp
-   void setup() {
-     Serial.begin(115200);
-     mcp.add_tool("hello", "Returns a greeting message", handle_hello);
-     mcp.begin(Serial, 115200);
-   }
-   ```
-
-3. **Flash and test**
-
-   ```bash
-   pio run -t upload
-   ```
-
-</Steps>
-
----
-
-## Step 3: Test with MCP Inspector
-
-The easiest way to verify your tool works is with MCP Inspector:
-
-```bash
-SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```ini
+lib_deps =
+  bblanchon/ArduinoJson @ ^7
+  ThanabordeeN/MCP-U_Arduino @ ^1.2.0
 ```
 
-<Tabs>
-<TabItem label="Linux">
-```bash
-# Find your port first
-ls /dev/ttyUSB* /dev/ttyACM*
-```
-</TabItem>
-<TabItem label="macOS">
-```bash
-ls /dev/tty.usbserial-*
-```
-</TabItem>
-<TabItem label="Windows">
-Device Manager → Ports (COM & LPT)
-</TabItem>
-</Tabs>
-
-Then run:
-
-```bash
-SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
-```
-
-Open the browser URL shown, find `hello` in the tool list, and call it. You should see:
-
-```json
-{
-  "message": "Hello from ESP32!",
-  "device": "my-first-tool"
-}
-```
-
-:::tip
-MCP Inspector is your best friend for debugging. Use it whenever something isn't working!
-:::
-
----
-
-## Step 4: Add Parameters
-
-Now let's make the tool accept input. We'll create a personalized greeting tool.
-
-<Steps>
-
-1. **Update the handler**
-
-   ```cpp
-   void handle_greet(int id, JsonObject params) {
-     const char* name = params["name"].as<const char*>();
-     
-     // Default if no name provided
-     if (!name || strlen(name) == 0) {
-       name = "Stranger";
-     }
-
-     JsonDocument res;
-     res["result"]["message"] = "Hello, " + String(name) + "!";
-     res["result"]["name"] = name;
-     mcp.send_result(id, res);
-   }
-   ```
-
-2. **Register with a description that explains parameters**
-
-   ```cpp
-   void setup() {
-     Serial.begin(115200);
-     mcp.add_tool("greet", "Greet a person by name (param: name)", handle_greet);
-     mcp.begin(Serial, 115200);
-   }
-   ```
-
-3. **Flash and test**
-
-   ```bash
-   pio run -t upload
-   ```
-
-   Now call `greet` with `{"name": "Alice"}`:
-
-   ```json
-   {
-     "message": "Hello, Alice!",
-     "name": "Alice"
-   }
-   ```
-
-</Steps>
-
----
-
-## Step 5: Returning Custom Buffers (Optional)
-
-MCP-U features a **Buffered Pull Memory** subsystem that stores historical sensor data in an SQLite database. You can opt-in to this feature from a custom tool by returning a specific JSON shape. If your tool returns `type: "buffer"`, the client will automatically parse the values as a time-series buffer and save them to the database!
-
-<Steps>
-
-1. **Create a buffer-returning handler**
-
-   ```cpp
-   void handle_custom_buffer(int id, JsonObject params) {
-     JsonDocument res;
-     
-     // Required fields to trigger the client's Buffer Drain Poller logic:
-     res["result"]["type"] = "buffer";
-     res["result"]["resource"] = "simulated_wave"; // Used as the metric name
-     res["result"]["sample_interval_ms"] = 100;    // Time between samples
-     
-     // Fill the buffer with data
-     JsonArray values = res["result"]["values"].to<JsonArray>();
-     values.add(1.2);
-     values.add(1.5);
-     values.add(1.8);
-     values.add(2.0);
-     
-     res["result"]["count"] = 4;
-     
-     mcp.send_result(id, res);
-   }
-   ```
-
-2. **Register the tool**
-
-   ```cpp
-   mcp.add_tool("get_wave", "Returns a custom buffered sine wave", handle_custom_buffer);
-   ```
-
-   When an AI agent calls `get_wave`, the client intercepts the `type: "buffer"` response, calculates the exact timestamps for all 4 values based on the `100ms` interval, and saves them into the `mcp_u_observations` SQLite table.
-
-</Steps>
-
----
-
-## Complete Example
-
-Here's the full `main.cpp` with both tools:
+Minimal skeleton — all patterns build on this:
 
 ```cpp
 #include <MCP-U.h>
 
-McpDevice mcp("my-first-tool", "1.0.0");
+McpDevice mcp("my-device", "1.0.0");
 
-// Tool 1: Simple greeting (no params)
-void handle_hello(int id, JsonObject params) {
-  JsonDocument res;
-  res["result"]["message"] = "Hello from ESP32!";
-  res["result"]["device"] = "my-first-tool";
-  mcp.send_result(id, res);
-}
-
-// Tool 2: Personalized greeting (with params)
-void handle_greet(int id, JsonObject params) {
-  const char* name = params["name"].as<const char*>();
-  
-  if (!name || strlen(name) == 0) {
-    name = "Stranger";
-  }
-
-  JsonDocument res;
-  res["result"]["message"] = "Hello, " + String(name) + "!";
-  res["result"]["name"] = name;
-  mcp.send_result(id, res);
-}
+// handlers go here (before setup)
 
 void setup() {
   Serial.begin(115200);
-  
-  // Register both tools
-  mcp.add_tool("hello", "Returns a greeting message", handle_hello);
-  mcp.add_tool("greet", "Greet a person by name (param: name)", handle_greet);
-  
+  // mcp.add_pin(...)  and  mcp.add_tool(...)  go here
   mcp.begin(Serial, 115200);
 }
 
@@ -303,29 +47,418 @@ void loop() {
 }
 ```
 
+<Aside type="caution" title="Order matters">
+Always call `add_pin()` and `add_tool()` **before** `mcp.begin()`. After `begin()` the registry is locked.
+</Aside>
+
 ---
 
-## Wrap Up
+## Pattern 1 — On-Demand Read
 
-You've created your first custom tools! Here's what you learned:
+The AI calls the tool whenever it needs a fresh reading.
+
+**Example: LM35 temperature sensor on GPIO34.**
+
+```cpp
+#define TEMP_PIN 34
+
+void handle_get_temperature(int id, JsonObject params) {
+  int   raw_adc  = analogRead(TEMP_PIN);
+  float voltage  = raw_adc * 3.3f / 4095.0f;   // ESP32: 12-bit ADC, 3.3 V ref
+  float temp_c   = (voltage - 0.5f) * 100.0f;  // LM35: 10 mV/°C, 0.5 V offset
+
+  JsonDocument res;
+  res["result"]["temperature_c"] = temp_c;
+  res["result"]["voltage_v"]     = voltage;
+  res["result"]["raw_adc"]       = raw_adc;
+  mcp.send_result(id, res);
+}
+```
+
+Register in `setup()`:
+
+```cpp
+mcp.add_tool(
+  "get_temperature",
+  "Read LM35 temperature sensor on GPIO34. Returns temperature_c, voltage_v, raw_adc.",
+  handle_get_temperature
+);
+```
+
+<Aside type="tip" title="Write the description for the AI, not for humans">
+The description is the AI's only hint about what a tool does and what it returns.
+Include field names and units so the AI knows how to interpret the result.
+</Aside>
+
+**Response the AI receives:**
+
+```json
+{
+  "temperature_c": 24.8,
+  "voltage_v": 0.748,
+  "raw_adc": 928
+}
+```
+
+### Error handling
+
+If something can go wrong, return an error instead of garbage data:
+
+```cpp
+void handle_get_temperature(int id, JsonObject params) {
+  int raw = analogRead(TEMP_PIN);
+
+  if (raw < 10) {
+    mcp.send_error(id, -32602, "Sensor not connected or reading too low");
+    return;
+  }
+
+  float voltage = raw * 3.3f / 4095.0f;
+  float temp_c  = (voltage - 0.5f) * 100.0f;
+
+  JsonDocument res;
+  res["result"]["temperature_c"] = temp_c;
+  res["result"]["raw_adc"]       = raw;
+  mcp.send_result(id, res);
+}
+```
+
+**Standard error codes:**
+
+| Code | Meaning |
+|------|---------|
+| `-32602` | Invalid params / bad state |
+| `-32601` | Method not found (built-in, don't use manually) |
+| `-32600` | Invalid request (built-in) |
+
+---
+
+## Pattern 2 — Parameterized Action
+
+The AI sends arguments; the MCU validates them and acts.
+
+**Example: Set LED brightness via PWM on GPIO5.**
+
+```cpp
+#define LED_PIN 5
+
+void handle_set_brightness(int id, JsonObject params) {
+  // Validate parameter exists and is in range
+  if (!params["duty"].is<int>()) {
+    mcp.send_error(id, -32602, "Missing param: duty (integer 0-255)");
+    return;
+  }
+
+  int duty = params["duty"].as<int>();
+  if (duty < 0 || duty > 255) {
+    mcp.send_error(id, -32602, "duty must be 0-255");
+    return;
+  }
+
+  analogWrite(LED_PIN, duty);
+
+  JsonDocument res;
+  res["result"]["pin"]   = LED_PIN;
+  res["result"]["duty"]  = duty;
+  res["result"]["pct"]   = (duty * 100) / 255;
+  mcp.send_result(id, res);
+}
+```
+
+Register with parameter description in the tool description:
+
+```cpp
+mcp.add_tool(
+  "set_brightness",
+  "Set LED brightness on GPIO5. Param: duty (integer 0–255, where 0=off, 255=full).",
+  handle_set_brightness
+);
+```
+
+**AI calls it as:**
+
+```json
+{ "duty": 128 }
+```
+
+**Response:**
+
+```json
+{ "pin": 5, "duty": 128, "pct": 50 }
+```
+
+### Reading different parameter types
+
+```cpp
+// Integer
+int count = params["count"].as<int>();
+
+// Float
+float threshold = params["threshold"].as<float>();
+
+// Boolean
+bool enable = params["enable"].as<bool>();
+
+// String
+const char* label = params["label"].as<const char*>();
+
+// With default fallback (operator| syntax)
+int count    = params["count"]    | 10;      // default 10
+float thresh = params["threshold"] | 0.5f;   // default 0.5
+bool  enable = params["enable"]   | true;    // default true
+```
+
+---
+
+## Pattern 3 — Auto-Polled Buffer (McpPolling)
+
+Use this when you need **continuous sensor data** in the memory database — touch events, accelerometer traces, heart rate samples, etc.
+
+The idea: the MCU fills a circular buffer in `loop()` at a high sample rate. A custom tool dumps the buffer on demand. `McpPolling(ms)` tells the client to call the tool automatically so data flows into the DB without any manual configuration.
+
+**Example: Capacitive touch sensor on GPIO4, sampled every 200 ms.**
+
+<Steps>
+
+1. **Declare the circular buffer** (file scope, before any functions)
+
+   ```cpp
+   #define TOUCH_PIN          4
+   #define TOUCH_BUF_SIZE    20     // samples kept in RAM
+   #define TOUCH_INTERVAL_MS 200   // sample every 200 ms
+   #define TOUCH_THRESHOLD   40    // raw value below this = touched
+
+   static int      touch_buf[TOUCH_BUF_SIZE];
+   static uint32_t touch_ts[TOUCH_BUF_SIZE];   // millis() at sample time
+   static uint8_t  touch_head  = 0;
+   static uint8_t  touch_count = 0;
+   static uint32_t last_touch_sample = 0;
+   ```
+
+2. **Write the handler** — dumps the whole buffer in one call
+
+   ```cpp
+   void handle_read_touch(int id, JsonObject params) {
+     JsonDocument res;
+
+     // These three fields trigger the client's buffer → DB pipeline
+     res["result"]["type"]               = "buffer";
+     res["result"]["resource"]           = "touch_gpio4";   // metric name in DB
+     res["result"]["sample_interval_ms"] = TOUCH_INTERVAL_MS;
+
+     uint8_t n = touch_count;
+     for (uint8_t i = 0; i < n; i++) {
+       uint8_t idx = (touch_head - n + i + TOUCH_BUF_SIZE) % TOUCH_BUF_SIZE;
+       res["result"]["values"][i]     = touch_buf[idx];
+       res["result"]["touched"][i]    = (touch_buf[idx] < TOUCH_THRESHOLD);
+       res["result"]["timestamps"][i] = touch_ts[idx];
+     }
+
+     mcp.send_result(id, res);
+   }
+   ```
+
+3. **Register with `McpPolling`** — the client will call this tool every 2 seconds on its own
+
+   ```cpp
+   mcp.add_tool(
+     "read_touch",
+     "Read capacitive touch sensor on GPIO4. Returns buffer of raw values "
+     "and touched (bool) flags. resource=touch_gpio4, interval_ms=200.",
+     handle_read_touch,
+     McpPolling(2000)   // client polls every 2 s automatically
+   );
+   ```
+
+4. **Sample in `loop()`** — non-blocking, never uses `delay()`
+
+   ```cpp
+   void loop() {
+     mcp.loop();   // handle incoming RPC requests
+
+     // Fill circular buffer non-blocking
+     if (millis() - last_touch_sample >= TOUCH_INTERVAL_MS) {
+       last_touch_sample = millis();
+       touch_buf[touch_head] = touchRead(TOUCH_PIN);
+       touch_ts[touch_head]  = millis();
+       touch_head = (touch_head + 1) % TOUCH_BUF_SIZE;
+       if (touch_count < TOUCH_BUF_SIZE) touch_count++;
+     }
+   }
+   ```
+
+</Steps>
+
+**What happens at runtime:**
+
+```
+Firmware                    Client                        Memory DB
+   │                           │                              │
+   │  loop() fills buffer       │                              │
+   │  every 200 ms             │                              │
+   │                           │── auto-poll read_touch ──►   │
+   │◄─ read_touch() ──────────►│                              │
+   │── {type:"buffer", ...} ──►│── expandBufferSamples ──────►│
+   │                           │   (infers timestamps)        │── rows written
+   │                           │                              │
+```
+
+The client reconstructs exact timestamps for each sample using `receivedAt - (n * interval_ms)`. Buffer data lands in `mcp_u_observations` so the AI can query history: "what was the average touch value over the past hour?"
+
+<Aside type="tip" title="Why McpPolling instead of the env var?">
+Earlier versions used `MCPU_AUTO_POLL_READ_TOUCH=2000` in the client config.
+`McpPolling` moves the intent into the firmware where it belongs — the device knows
+how often it should be read, not the client config file.
+</Aside>
+
+---
+
+## Complete Working Example
+
+All three patterns together — temperature sensor, LED brightness control, and auto-polled touch:
+
+```cpp
+#include <MCP-U.h>
+
+#define TEMP_PIN           34
+#define LED_PIN             5
+#define TOUCH_PIN           4
+#define TOUCH_BUF_SIZE     20
+#define TOUCH_INTERVAL_MS 200
+#define TOUCH_THRESHOLD    40
+
+McpDevice mcp("sensor-demo", "1.0.0");
+
+// --- Pattern 3: circular buffer (file scope) ---
+static int      touch_buf[TOUCH_BUF_SIZE];
+static uint32_t touch_ts[TOUCH_BUF_SIZE];
+static uint8_t  touch_head = 0, touch_count = 0;
+static uint32_t last_touch_sample = 0;
+
+// --- Pattern 1: on-demand read ---
+void handle_get_temperature(int id, JsonObject params) {
+  int   raw  = analogRead(TEMP_PIN);
+  if (raw < 10) { mcp.send_error(id, -32602, "Sensor not connected"); return; }
+  float v    = raw * 3.3f / 4095.0f;
+  float temp = (v - 0.5f) * 100.0f;
+  JsonDocument res;
+  res["result"]["temperature_c"] = temp;
+  res["result"]["raw_adc"]       = raw;
+  mcp.send_result(id, res);
+}
+
+// --- Pattern 2: action with parameters ---
+void handle_set_brightness(int id, JsonObject params) {
+  if (!params["duty"].is<int>()) {
+    mcp.send_error(id, -32602, "Missing param: duty (0-255)"); return;
+  }
+  int duty = params["duty"].as<int>();
+  if (duty < 0 || duty > 255) {
+    mcp.send_error(id, -32602, "duty must be 0-255"); return;
+  }
+  analogWrite(LED_PIN, duty);
+  JsonDocument res;
+  res["result"]["duty"] = duty;
+  mcp.send_result(id, res);
+}
+
+// --- Pattern 3: auto-polled buffer ---
+void handle_read_touch(int id, JsonObject params) {
+  JsonDocument res;
+  res["result"]["type"]               = "buffer";
+  res["result"]["resource"]           = "touch_gpio4";
+  res["result"]["sample_interval_ms"] = TOUCH_INTERVAL_MS;
+  uint8_t n = touch_count;
+  for (uint8_t i = 0; i < n; i++) {
+    uint8_t idx = (touch_head - n + i + TOUCH_BUF_SIZE) % TOUCH_BUF_SIZE;
+    res["result"]["values"][i]  = touch_buf[idx];
+    res["result"]["touched"][i] = (touch_buf[idx] < TOUCH_THRESHOLD);
+  }
+  mcp.send_result(id, res);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+
+  mcp.add_tool("get_temperature", "Read LM35 on GPIO34. Returns temperature_c and raw_adc.",
+               handle_get_temperature);
+
+  mcp.add_tool("set_brightness",
+               "Set LED brightness on GPIO5. Param: duty (integer 0-255).",
+               handle_set_brightness);
+
+  mcp.add_tool("read_touch",
+               "Read capacitive touch on GPIO4. Returns buffer of raw values and touched flags.",
+               handle_read_touch, McpPolling(2000));
+
+  mcp.begin(Serial, 115200);
+}
+
+void loop() {
+  mcp.loop();
+
+  if (millis() - last_touch_sample >= TOUCH_INTERVAL_MS) {
+    last_touch_sample = millis();
+    touch_buf[touch_head] = touchRead(TOUCH_PIN);
+    touch_ts[touch_head]  = millis();
+    touch_head = (touch_head + 1) % TOUCH_BUF_SIZE;
+    if (touch_count < TOUCH_BUF_SIZE) touch_count++;
+  }
+}
+```
+
+---
+
+## Test with MCP Inspector
+
+Before connecting an AI agent, verify every tool works:
+
+<Tabs>
+<TabItem label="Linux / macOS">
+```bash
+SERIAL_PORT=/dev/ttyACM0 npx @modelcontextprotocol/inspector npx mcpu-client
+```
+</TabItem>
+<TabItem label="Windows">
+```cmd
+set SERIAL_PORT=COM3 && npx @modelcontextprotocol/inspector npx mcpu-client
+```
+</TabItem>
+<TabItem label="TCP (WiFi)">
+```bash
+DEVICES=board:192.168.1.38:3000:tcp npx @modelcontextprotocol/inspector npx mcpu-client
+```
+</TabItem>
+</Tabs>
+
+Open the browser URL, find each tool in the list, and call them manually. Confirm:
+
+- `get_temperature` — returns `temperature_c`
+- `set_brightness` with `{"duty": 128}` — LED dims
+- `read_touch` — returns `values[]` array; `[auto-poll]` log line should appear in the terminal
+
+---
+
+## Summary
 
 <CardGrid>
-<Card title="Handler Pattern">
-  Define a function with signature `void handler(int id, JsonObject params)` that calls `mcp.send_result(id, res)` on success or `mcp.send_error(id, code, message)` on failure.
+<Card title="Pattern 1 — On-Demand">
+  `add_tool(name, desc, handler)` — AI calls when it needs fresh data. Handler reads sensor and calls `send_result`.
 </Card>
-<Card title="Registration">
-  Use `mcp.add_tool("name", "description", handler)` in `setup()` before `mcp.begin()`.
+<Card title="Pattern 2 — Action">
+  Same registration. Use `params["key"].as<Type>()` to read arguments. Validate before acting, send error if invalid.
 </Card>
-<Card title="Parameters">
-  Access params with `params["key"].as<Type>()` — use `|` for defaults like `params["name"] | "default"`.
+<Card title="Pattern 3 — Auto-Poll">
+  `add_tool(name, desc, handler, McpPolling(ms))` — MCU samples in `loop()`, handler dumps buffer, client polls automatically. Buffer data goes into memory DB.
 </Card>
-<Card title="Testing">
-  Use MCP Inspector to test tools before connecting an AI agent.
+<Card title="Always">
+  Register before `begin()`. Write descriptions for the AI (include field names + units). Use `send_error` for bad states instead of returning garbage.
 </Card>
 </CardGrid>
 
 ### Next Steps
 
-- Add a sensor — see [Add a Sensor or Peripheral](/how-to/add-sensor/)
-- Connect via WiFi — see [Connect via WiFi TCP](/how-to/connect-wifi-tcp/)
-- Set up multiple devices — see [Multi-Device Setup](/how-to/multi-device-setup/)
+- [Add a Sensor or Peripheral](/how-to/add-sensor/) — specific wiring and library examples
+- [Enable Pin Buffering](/how-to/enable-pin-buffer/) — let built-in pins use the same buffer system
+- [Query Memory with AI](/tutorials/querying-memory-with-ai/) — use SQL to analyze buffered history
