@@ -44,10 +44,30 @@ DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 npx mcpu-client
 DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npx mcpu-client
 ```
 
+**Virtual Mock Testing:**
+```bash
+DEVICES=mock-mcu:mock npx mcpu-client
+```
+
 **Windows:**
 ```bash
 set DEVICES=board1:COM3:115200,board2:COM4:115200 && npx mcpu-client
 ```
+
+---
+
+## Memory Subsystem Configuration
+
+MCP-U Client includes a built-in "Buffered Pull Memory" feature that stores sensor history and tool execution logs in a local SQLite database, allowing LLMs to query historical context securely. This feature is enabled by default.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MCPU_MEMORY_ENABLED` | Enable memory subsystem | `true` |
+| `MCPU_MEMORY_CONNECTION_URL` | SQLite connection path | `sqlite:///./mcpu-memory.db` |
+| `MCPU_SQL_READONLY_ENABLED` | Expose `sql_readonly_query` tool | `true` |
+| `MCPU_BUFFER_DRAIN_ENABLED` | Automated polling for buffered pins | `true` |
+| `MCPU_RAW_RETENTION_HOURS` | Keep raw sensor samples for X hours | `24` |
+| `MCPU_TOOL_CALL_RETENTION_DAYS` | Keep execution logs for X days | `365` |
 
 ---
 

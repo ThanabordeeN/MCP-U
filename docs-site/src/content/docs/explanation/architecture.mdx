@@ -50,8 +50,8 @@ This architecture is designed for:
 ### Firmware (`MCP-U` library)
 
 - Listens on any Arduino `Stream` for newline-delimited JSON-RPC requests
-- Maintains a pin registry (type, name, description)
-- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `pwm_write`, `adc_read`)
+- Maintains a pin registry (type, name, description, capabilities, sampling rates)
+- Dispatches to built-in handlers (`gpio_write`, `gpio_read`, `get_pin_buffer`, etc.)
 - Dispatches to user-registered custom tools
 - Sends `list_tools` discovery response with full JSON Schema for all tools
 
@@ -59,7 +59,8 @@ This architecture is designed for:
 
 - `SerialTransport` — wraps `serialport` library, `ReadlineParser` for `\n` framing
 - `TcpTransport` — wraps Node.js `net.Socket`, manual line buffering
-- Both share: pending promise map, request ID counter, 5s timeout, disconnect event
+- `MockTransport` — simulates a connected device for testing without physical hardware
+- All share: pending promise map, request ID counter, 5s timeout, disconnect event
 
 ### `device_manager.ts`
 
@@ -75,13 +76,20 @@ This architecture is designed for:
 - Handles `required` → optional fields
 - Flat schemas only (matches MCU RAM constraint)
 
+### `memory/` (Buffered Pull Memory Subsystem)
+
+- `sqlite_memory_store.ts` — Manages the SQLite database connection, schema, batch inserts, tool calls, and data retention cleanup.
+- `buffer_drain_poller.ts` — Identifies pins with `buffer: true` capabilities and dynamically calculates safe polling intervals to drain MCU ring buffers before they overflow.
+- `buffer_expander.ts` — Parses bulk buffer arrays from the MCU and infers timestamps for each sample.
+- `sqlite_readonly_adapter.ts` + `sql_guard.ts` — Provides a safe, restricted interface allowing the LLM to query historical observations using only `SELECT` or `WITH` SQL commands.
+
 ### `index.ts`
 
 - Loads device config: `SERIAL_PORT` env → `DEVICES` env
-- Boots `DeviceManager`
-- Registers static meta-tool `list_devices`
+- Boots `DeviceManager` and `Memory Subsystem`
+- Registers static meta-tools `list_devices`, `sql_readonly_query`, and `memory_status`
 - Loops over all devices × all tools → `server.registerTool()` dynamically
-- Registers MCP Resources: `mcu://devices`, `mcu://{device_id}/pins`
+- Registers MCP Resources: `mcu://devices`, `mcu://{device_id}/pins`, `mcu://cache/*`
 
 ---
 
@@ -198,5 +206,7 @@ gRPC requires Protocol Buffers, adds significant overhead (~50KB+ for the stack)
 | RAM footprint | ~20KB | ~3KB | ~5KB | ~50KB+ |
 | Works on AVR | Yes | Borderline | No | No |
 | Self-describing | Yes | No | No | Partial |
+| Transport | Serial/TCP | TCP | TCP | TCP |
+| Protocol | JSON-RPC 2.0 | Pub/Sub | REST | Protobuf | No | No | Partial |
 | Transport | Serial/TCP | TCP | TCP | TCP |
 | Protocol | JSON-RPC 2.0 | Pub/Sub | REST | Protobuf |
