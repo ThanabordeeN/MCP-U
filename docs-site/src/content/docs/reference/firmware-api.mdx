@@ -81,6 +81,26 @@ void my_handler(int id, JsonObject params) {
 mcp.add_tool("my_action", "Does something custom", my_handler);
 ```
 
+---
+
+### `add_tool(name, description, handler, McpPolling(interval_ms))`
+
+Register a custom tool and declare that it should be polled automatically.
+The connected client reads this interval from `list_tools` and calls the tool
+on schedule — no client-side configuration required.
+
+```cpp
+// Client will call read_sensor every 2 seconds automatically
+mcp.add_tool("read_sensor", "Read sensor buffer", handle_read_sensor, McpPolling(2000));
+```
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `McpPolling(ms)` | `McpPollConfig` | Suggested polling interval in milliseconds |
+
+The firmware emits `"polling": {"enabled": true, "interval_ms": 2000}` in the
+`list_tools` response for this tool, allowing clients to self-configure.
+
 **Handler signature:** `void handler(int id, JsonObject params)`
 
 **Response patterns:**

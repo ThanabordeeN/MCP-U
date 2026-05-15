@@ -102,6 +102,7 @@ let memory: SqliteMemoryStore | null = null;
 let readonlyAdapter: SqliteReadonlyAdapter | null = null;
 let poller: BufferDrainPoller | null = null;
 let cleanupInterval: NodeJS.Timeout | null = null;
+let memoryInitError: string | null = null;
 
 if (memConfig.MEMORY_ENABLED) {
   try {
@@ -111,7 +112,7 @@ if (memConfig.MEMORY_ENABLED) {
     await memory.writeSession({
       session_id: sessionId,
       started_at_ms: Date.now(),
-      client_version: "1.1.0",
+      client_version: "1.2.1",
       memory_profile: "balanced",
     });
 
@@ -137,10 +138,14 @@ if (memConfig.MEMORY_ENABLED) {
           resource_type: pin.type,
           direction: "unknown",
           pin: pin.pin,
+          unit: null,
+          data_type: "number",
           description: pin.description,
+          sampling_enabled: pin.sampling?.interval_ms ? 1 : 0,
+          sampling_interval_ms: pin.sampling?.interval_ms ?? null,
           buffer_enabled: pin.capabilities?.buffer ? 1 : 0,
           buffer_size: pin.sampling?.buffer_size ?? null,
-          sampling_interval_ms: pin.sampling?.interval_ms ?? null,
+          metadata_json: null,
           created_at_ms: Date.now(),
         });
       }
@@ -194,7 +199,8 @@ if (memConfig.MEMORY_ENABLED) {
       }
     }, 60_000);
   } catch (err) {
-    process.stderr.write(`[memory] Failed to initialize: ${(err as Error).message}\n`);
+    memoryInitError = (err as Error).message;
+    process.stderr.write(`[memory] Failed to initialize: ${memoryInitError}\n${(err as Error).stack}\n`);
     memory = null;
   }
 }
@@ -203,7 +209,7 @@ if (memConfig.MEMORY_ENABLED) {
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const server = new McpServer({ name: "MCP-U", version: "1.1.0" });
+const server = new McpServer({ name: "MCP-U", version: "1.2.1" });
 
 // ---------------------------------------------------------------------------
 // Meta tool — always present
@@ -229,10 +235,10 @@ server.registerTool(
 );
 
 // ---------------------------------------------------------------------------
-// Memory tools
+// Memory tools — always registered, null-safe handlers
 // ---------------------------------------------------------------------------
 
-if (memory && readonlyAdapter) {
+{
   server.registerTool(
     "sql_readonly_query",
     {
@@ -243,19 +249,25 @@ if (memory && readonlyAdapter) {
       }),
     },
     async (args: any) => {
+      if (!readonlyAdapter) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Memory not initialized", reason: memoryInitError ?? "unknown" }) }],
+          isError: true,
+        };
+      }
       try {
-        const result = await readonlyAdapter!.query(
+        const result = await readonlyAdapter.query(
           args.sql,
           args.max_rows ?? memConfig.SQL_MAX_ROWS
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
         };
       } catch (err) {
         return {
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: JSON.stringify({ error: (err as Error).message }, null, 2),
             },
           ],
@@ -272,9 +284,15 @@ if (memory && readonlyAdapter) {
       inputSchema: z.object({}),
     },
     async () => {
-      const status = await memory!.getStatus();
+      if (!memory) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: "Memory not initialized" }) }],
+          isError: true,
+        };
+      }
+      const status = await memory.getStatus();
       return {
-        content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
+        content: [{ type: "text" as const, text: JSON.stringify(status, null, 2) }],
       };
     }
   );
@@ -304,7 +322,9 @@ if (memory && readonlyAdapter) {
       description: "Memory status and configuration",
     },
     async () => {
-      const status = await memory!.getStatus();
+      const status = memory
+        ? await memory.getStatus()
+        : { error: "Memory not initialized" };
       return {
         contents: [
           {
@@ -457,6 +477,54 @@ for (const device of all_devices) {
         };
       },
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-poll custom tools based on firmware-declared polling intervals
+// ---------------------------------------------------------------------------
+
+for (const device of all_devices) {
+  for (const tool of device.tools) {
+    if (tool.polling?.enabled && tool.polling.interval_ms > 0) {
+      const interval_ms = tool.polling.interval_ms;
+      process.stderr.write(
+        `[auto-poll] ${device.id}::${tool.name} every ${interval_ms}ms (firmware-declared)\n`
+      );
+      setInterval(async () => {
+        try {
+          const result = await manager.call(device.id, tool.name, {});
+          if (
+            memory &&
+            result &&
+            typeof result === "object" &&
+            (result as any).type === "buffer" &&
+            Array.isArray((result as any).values)
+          ) {
+            const bufRes = result as any;
+            const { expandBufferSamples } = await import("./memory/buffer_expander.js");
+            const rows = expandBufferSamples({
+              values: bufRes.values,
+              receivedAtMs: Date.now(),
+              sampleIntervalMs: bufRes.sample_interval_ms ?? 1000,
+              sessionId,
+              deviceId: device.id,
+              resourceName: bufRes.resource ?? tool.name,
+              bufferBatchId: `auto_poll_${device.id}_${tool.name}_${Date.now()}`,
+            });
+            rows.forEach((r: any) => {
+              r.source = "auto_poll";
+              r.observation_type = "auto_poll";
+            });
+            await memory.writeObservations(rows);
+          }
+        } catch (e) {
+          process.stderr.write(
+            `[auto-poll] ${tool.name} error: ${(e as Error).message}\n`
+          );
+        }
+      }, interval_ms);
+    }
   }
 }
 
