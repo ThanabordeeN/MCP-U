@@ -15,6 +15,15 @@ export interface PinInfo {
   name: string;
   type: string;
   description: string;
+  capabilities?: {
+    buffer?: boolean;
+    [key: string]: unknown;
+  };
+  sampling?: {
+    interval_ms?: number;
+    buffer_size?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface ToolInfo {
