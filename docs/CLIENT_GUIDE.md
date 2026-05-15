@@ -69,6 +69,22 @@ Key environment variables:
 - `MCPU_BUFFER_DRAIN_ENABLED`: Enable automated polling for buffered pins (default: `true`)
 - `MCPU_RAW_RETENTION_HOURS`: How long to keep raw sensor samples (default: `24`)
 
+### Custom Tool Buffer Support
+
+You can push bulk historical data into the SQLite memory store directly from your own custom firmware tools. If a custom tool returns a JSON object containing `type: "buffer"` and an array of `values`, the client will automatically expand and save them as timestamped observations.
+
+**Example MCU Response:**
+```json
+{
+  "type": "buffer",
+  "resource": "voltage.output",
+  "sample_interval_ms": 500,
+  "count": 3,
+  "values": [3.21, 3.22, 3.24]
+}
+```
+The client will insert 3 rows into the `mcp_u_observations` table with the source marked as `custom:<tool_name>`.
+
 ---
 
 ## Running
