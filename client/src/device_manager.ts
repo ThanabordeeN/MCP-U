@@ -34,6 +34,10 @@ export interface ToolInfo {
     properties?: Record<string, { type: string; description?: string }>;
     required?: string[];
   };
+  polling?: {
+    enabled: boolean;
+    interval_ms: number;
+  };
 }
 
 export interface DeviceInfo {
