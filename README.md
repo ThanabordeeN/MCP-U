@@ -15,11 +15,14 @@
 
 ## How It Works
 
-```
-┌─────────────────┐         ┌──────────────────────┐         ┌───────────────┐
-│  Claude / Gemini│◄──MCP──►│  mcpu-client (npm)   │◄─Serial─►  MCU Firmware │
-│  or any LLM     │  stdio  │  Dynamic tool regist. │  /TCP   │  MCP-U lib   │
-└─────────────────┘         └──────────────────────┘         └───────────────┘
+```mermaid
+graph LR
+    A["Claude / Gemini<br/>or any LLM"]
+    B["mcpu-client (npm)<br/>Dynamic tool regist."]
+    C["MCU Firmware<br/>MCP-U lib"]
+
+    A <-->|"MCP (stdio)"| B
+    B <-->|"Serial / TCP"| C
 ```
 
 1. Client connects to MCU over Serial or TCP
@@ -194,23 +197,30 @@ With multiple devices, tools are named `{device_id}__{tool_name}` (e.g. `robot__
 
 ## Project Structure
 
+```mermaid
+graph TD
+    A[MCP-U] --> B[firmware]
+    A --> C[client]
+    A --> D[examples]
+    A --> E[docs-site]
+
+    B --> B1["src/main.cpp<br/>Example firmware"]
+    B --> B2["lib/MCP-U/<br/>Arduino library"]
+
+    C --> C1["src/index.ts<br/>Dynamic MCP server"]
+    C --> C2["src/transport.ts<br/>Serial + TCP transports"]
+    C --> C3["src/device_manager.ts"]
+    C --> C4["src/schema_builder.ts"]
+
+    D --> D1["bme280-sensor/<br/>Temp, humidity, pressure"]
+    D --> D2["ssd1306-display/<br/>OLED display"]
+    D --> D3["mpu6050-motion/<br/>Gyroscope + accelerometer"]
+    D --> D4["lcd1604-display/<br/>LCD 16x4 I2C"]
+
+    E --> E1["Starlight documentation site"]
 ```
-├── firmware/               ESP32 firmware (PlatformIO project)
-│   ├── src/main.cpp        Example firmware
-│   └── lib/MCP-U/          MCP-U Arduino library
-├── client/                 Universal MCP client (TypeScript, published on npm)
-│   └── src/
-│       ├── index.ts        Dynamic MCP server
-│       ├── transport.ts    Serial + TCP transports
-│       ├── device_manager.ts
-│       └── schema_builder.ts
-├── examples/               Firmware examples
-│   ├── bme280-sensor/      Temperature, humidity, pressure
-│   ├── ssd1306-display/    OLED display
-│   ├── mpu6050-motion/     Gyroscope & accelerometer
-│   └── lcd1604-display/    LCD 16x4 I2C
-└── docs-site/              Starlight documentation site
-```
+
+For contribution and release workflow details, including which folder to publish npm, Arduino, and PlatformIO packages from, see the [Contributing guide](docs-site/src/content/docs/meta/contributing.mdx).
 
 ---
 

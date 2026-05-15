@@ -214,17 +214,17 @@ Available when at least one input pin has threshold events enabled via
 
 ## Discovery Sequence
 
-```
-Client                          MCU
-  │                              │
-  │── connect (serial/TCP) ─────►│
-  │── get_info ─────────────────►│
-  │◄─ {device, version, ...} ───│
-  │── list_tools ───────────────►│
-  │◄─ {tools[], pins[]} ────────│
-  │                              │
-  │  (register MCP tools)        │
-  │                              │
-  │── gpio_write {pin:2,value:1}►│
-  │◄─ {pin:2, name:"led", ...} ─│
+```mermaid
+sequenceDiagram
+    participant Client
+    participant MCU
+
+    Client->>MCU: connect (serial/TCP)
+    Client->>MCU: get_info
+    MCU-->>Client: {device, version, ...}
+    Client->>MCU: list_tools
+    MCU-->>Client: {tools[], pins[]}
+    Note over Client: register MCP tools
+    Client->>MCU: gpio_write {pin:2, value:1}
+    MCU-->>Client: {pin:2, name:"led", ...}
 ```

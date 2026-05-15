@@ -21,6 +21,21 @@
   --sl-color-text-accent: #60a5fa;
 }
 
+/* Background Gradients for Glass effect visibility */
+:root[data-theme='light'] body {
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--sl-color-accent-high) 20%, transparent), transparent 40%),
+              radial-gradient(circle at bottom right, color-mix(in srgb, var(--sl-color-accent) 10%, transparent), transparent 40%),
+              var(--sl-color-bg);
+  background-attachment: fixed;
+}
+
+:root[data-theme='dark'] body {
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--sl-color-accent-low) 40%, transparent), transparent 40%),
+              radial-gradient(circle at bottom right, color-mix(in srgb, var(--sl-color-accent) 15%, transparent), transparent 40%),
+              var(--sl-color-bg);
+  background-attachment: fixed;
+}
+
 
 /* ── Focus ─────────────────────────────────────────────────── */
 
@@ -119,30 +134,343 @@ a {
 }
 
 
+/* Global Glass Properties & Smooth Transitions */
+:root {
+  --glass-blur: blur(16px) saturate(1.5);
+  --glass-bg-light: color-mix(in srgb, var(--sl-color-bg) 60%, transparent);
+  --glass-bg-dark: color-mix(in srgb, var(--sl-color-bg) 50%, transparent);
+  --glass-border-light: color-mix(in srgb, var(--sl-color-accent-high) 40%, transparent);
+  --glass-border-dark: color-mix(in srgb, var(--sl-color-accent-low) 60%, transparent);
+  
+  /* Smooth theme transition variables */
+  --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme='light'] {
+  --sl-color-bg-nav: var(--glass-bg-light);
+  --sl-color-bg-sidebar: var(--glass-bg-light);
+  --glass-border: var(--glass-border-light);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='dark'] {
+  --sl-color-bg-nav: var(--glass-bg-dark);
+  --sl-color-bg-sidebar: var(--glass-bg-dark);
+  --glass-border: var(--glass-border-dark);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Background Gradients for Glass effect visibility */
+html, body {
+  min-height: 100vh;
+  transition: background 0.5s ease;
+}
+
+:root[data-theme='light'] body {
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--sl-color-accent-high) 30%, transparent), transparent 50%),
+              radial-gradient(circle at bottom right, color-mix(in srgb, var(--sl-color-accent) 15%, transparent), transparent 50%),
+              #ffffff !important;
+  background-attachment: fixed !important;
+}
+
+:root[data-theme='dark'] body {
+  background: radial-gradient(circle at top left, color-mix(in srgb, var(--sl-color-accent-low) 50%, transparent), transparent 50%),
+              radial-gradient(circle at bottom right, color-mix(in srgb, var(--sl-color-accent) 25%, transparent), transparent 50%),
+              #09090b !important;
+  background-attachment: fixed !important;
+}
+
+/* Ensure Page container doesn't block background */
+.page {
+  background: transparent !important;
+}
+
+/* Header & Sidebar Backdrops - Added smooth transition */
+header.header, 
+aside.sidebar-pane, 
+.sl-sidebar {
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  background: var(--sl-color-bg-nav) !important;
+  transition: var(--transition-smooth) !important;
+}
+
+header.header {
+  border-bottom: 1px solid var(--glass-border) !important;
+}
+
+aside.sidebar-pane {
+  border-right: 1px solid var(--glass-border) !important;
+}
+
 /* ── Cards ─────────────────────────────────────────────────── */
 
 .sl-card,
 .card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--sl-color-bg-nav) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  border-radius: 12px;
+  transition: var(--transition-smooth) !important;
 }
 
 /* Hover lift — pointer devices only to avoid sticky hover on touch */
 @media (hover: hover) {
   .sl-card:hover,
   .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--sl-color-accent) 15%, transparent);
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 40px -8px color-mix(in srgb, var(--sl-color-accent) 30%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sl-color-accent) 40%, transparent) !important;
+  }
+}
+
+/* ── Glass Buttons ─────────────────────────────────────────── */
+
+button,
+.action,
+.hero .action,
+a.action,
+.sl-link-button,
+.social-icons a {
+  background: var(--sl-color-bg-nav) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: var(--transition-smooth) !important;
+  color: var(--sl-color-text) !important;
+  border-radius: 99px !important;
+}
+
+/* Ensure padding on social icons to look like glass buttons */
+.social-icons a {
+  padding: 0.5em !important;
+}
+
+button.primary,
+.action.primary,
+.hero .action.primary,
+a.action.primary,
+.sl-link-button.primary {
+  background: color-mix(in srgb, var(--sl-color-accent) 25%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--sl-color-accent) 50%, transparent) !important;
+  color: var(--sl-color-white) !important;
+}
+
+@media (hover: hover) {
+  button:hover,
+  .action:hover,
+  a.action:hover,
+  .sl-link-button:hover,
+  .social-icons a:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 20%, transparent) !important;
+    border-color: color-mix(in srgb, var(--sl-color-accent) 60%, transparent) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+    transform: translateY(-2px) !important;
   }
 }
 
 
-/* ── Code ──────────────────────────────────────────────────── */
+/* ── Sidebar Links & TOC (Overview, Prerequisites, etc) ────── */
+
+.sidebar-pane a,
+.sidebar-pane details summary,
+starlight-toc a,
+.right-sidebar a {
+  transition: var(--transition-smooth) !important;
+  border-radius: 8px !important;
+}
+
+.sidebar-pane a,
+.sidebar-pane details summary {
+  margin: 2px 8px !important;
+  padding-left: 12px !important;
+}
+
+/* Ensure padding on right sidebar doesn't break nested tree format */
+starlight-toc a,
+.right-sidebar a {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  margin-left: 0 !important;
+}
+
+/* Add custom Tree styling to TOC */
+starlight-toc ul {
+  position: relative;
+}
+
+starlight-toc ul ul {
+  padding-inline-start: 1rem !important;
+  margin-inline-start: 0.5rem !important;
+  border-left: 1px solid var(--glass-border);
+}
+
+starlight-toc ul ul::before {
+  content: "";
+  display: block;
+}
+
+@media (hover: hover) {
+  .sidebar-pane a:hover,
+  .sidebar-pane details summary:hover,
+  starlight-toc a:hover,
+  .right-sidebar a:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 15%, transparent) !important;
+    transform: translateX(4px) !important;
+  }
+}
+
+/* ── UI Tabs (PlatformIO / Arduino IDE) ────────────────────── */
+
+starlight-tabs .tablist-wrapper,
+.tablist-wrapper {
+  background: color-mix(in srgb, var(--sl-color-bg-nav) 80%, transparent) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  border-radius: 8px 8px 0 0 !important;
+  margin-bottom: 0 !important;
+}
+
+starlight-tabs [role="tab"],
+[role="tab"] {
+  transition: var(--transition-smooth) !important;
+  border-radius: 6px !important;
+  margin: 4px !important;
+  border: none !important;
+}
+
+starlight-tabs [role="tab"][aria-selected="true"],
+[role="tab"][aria-selected="true"] {
+  background: color-mix(in srgb, var(--sl-color-accent) 20%, transparent) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  color: var(--sl-color-text-accent) !important;
+}
+
+@media (hover: hover) {
+  starlight-tabs [role="tab"]:hover,
+  [role="tab"]:hover {
+    background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent) !important;
+  }
+}
+
+/* ── Smooth Hide/Show & Animations ─────────────────────────── */
+
+/* Universal transitions for elements that change state */
+a, button, summary, select, input, .card, .sl-card, svg {
+  transition: var(--transition-smooth);
+}
+
+/* Accordion details (SVG arrow rotation) */
+details summary svg,
+starlight-menu-button button svg,
+.action svg {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animate opened details blocks with fade in */
+details[open] summary ~ * {
+  animation: details-fade-in 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes details-fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Starlight overlays, popovers and mobile menus */
+dialog,
+.mobile-menu,
+.search-modal {
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+}
+
+/* Fallback for native Starlight toggles changing displays */
+[aria-expanded="true"] + ul,
+[aria-expanded="true"] ~ div {
+  animation: details-fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Code Blocks ───────────────────────────────────────────── */
+
+figure.expressive-code .frame {
+  background: color-mix(in srgb, var(--sl-color-bg-nav) 50%, transparent) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+  border-radius: 8px !important;
+  margin-top: 0 !important;
+}
+
+starlight-tabs figure.expressive-code .frame {
+  border-top: none !important;
+  border-radius: 0 0 8px 8px !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+figure.expressive-code pre {
+  background: transparent !important;
+}
 
 /* Slightly rounder inline code */
 .sl-markdown-content code:not(pre code) {
   border-radius: 4px;
 }
 
+
+/* ── Mermaid Diagrams ──────────────────────────────────────── */
+
+.mermaid-diagram {
+  margin: 1.5rem 0;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Fix text clipping at bottom edges of Mermaid nodes caused by Starlight CSS overrides */
+.mermaid-diagram svg * {
+  line-height: normal !important;
+}
+.mermaid-diagram .nodeLabel, 
+.mermaid-diagram .edgeLabel {
+  line-height: 1.25 !important;
+}
+
+.mermaid-error {
+  border: 1px solid var(--sl-color-red, #dc2626);
+  border-radius: 8px;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--sl-color-red, #dc2626) 8%, transparent);
+  color: var(--sl-color-red, #dc2626);
+  font-size: var(--sl-text-sm);
+}
+
+.mermaid-error p {
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+}
+
+.mermaid-error pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: var(--sl-text-xs);
+}
 
 /* ── Selection ─────────────────────────────────────────────── */
 

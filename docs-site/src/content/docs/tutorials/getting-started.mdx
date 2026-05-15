@@ -19,39 +19,98 @@ This tutorial walks you through connecting your first ESP32 to an AI agent via M
 
 ## Step 1 — Flash the Firmware
 
-Clone the repo and flash:
-
 <Tabs>
   <TabItem label="PlatformIO">
 
+Add the MCP-U library to your `platformio.ini`:
+
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = arduino
+lib_deps =
+    original2547/MCP-U
+    bblanchon/ArduinoJson @ ^7
+```
+
+Then create `src/main.cpp` with a minimal sketch (see below) and flash:
+
 ```bash
-git clone https://github.com/ThanabordeeN/mcpu
-cd mcpu/firmware
+pio run -t upload
+```
+
+Alternatively, point directly at the library path in the repo:
+
+```ini
+lib_deps =
+    https://github.com/ThanabordeeN/MCP-U.git#main/firmware/lib/MCP-U
+```
+
+Or clone the full repo and use the example sketch:
+
+```bash
+git clone https://github.com/ThanabordeeN/MCP-U
+cd MCP-U/firmware
 pio run -t upload
 ```
 
   </TabItem>
   <TabItem label="Arduino IDE">
 
-Open `firmware/src/main.cpp` in Arduino IDE and click **Upload**.
+Install the library via Library Manager — search for **"MCP-U"**.
+
+Then open `File > Examples > MCP-U > BasicExample` and click **Upload**.
+
+:::note[Library naming]
+If you don't see MCP-U, search for **"McpIot"** — the previous name before the rename. Both refer to the same library.
+:::
 
   </TabItem>
 </Tabs>
+
+### Minimal Sketch
+
+```cpp
+#include <MCP-U.h>
+
+McpDevice mcp("my-device", "1.0.0");
+
+void setup() {
+  mcp.add_pin(2,  "led",    MCP_DIGITAL_OUTPUT, "Onboard LED");
+  mcp.add_pin(5,  "buzzer", MCP_DIGITAL_OUTPUT, "Buzzer");
+  mcp.add_pin(34, "sensor", MCP_ADC_INPUT,      "Analog Sensor");
+  mcp.begin(Serial, 115200);
+}
+
+void loop() { mcp.loop(); }
+```
 
 The default sketch exposes:
 - **GPIO 2** — `led` (digital output)
 - **GPIO 5** — `buzzer` (digital output)
 - **GPIO 34** — `sensor` (ADC input)
 
-If using **WiFi TCP**, edit the credentials at the top of the sketch before uploading:
+If using **WiFi TCP**, add WiFi + TCP server setup before `mcp.begin()` and edit your credentials:
 
 ```cpp
-static const char*    WIFI_SSID     = "YOUR_SSID";
-static const char*    WIFI_PASSWORD = "YOUR_PASSWORD";
-static const uint16_t TCP_PORT      = 3000;
+#include <WiFi.h>
+
+const char* WIFI_SSID     = "YOUR_SSID";
+const char* WIFI_PASSWORD = "YOUR_PASSWORD";
+WiFiServer server(3000);
+
+void setup() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  server.begin();
+  // ... add pins ...
+  WiFiClient client = server.accept();  // after a client connects
+  mcp.begin(client);
+}
 ```
 
-After uploading, open the Serial Monitor (115200 baud). The ESP32 prints its IP:
+After uploading, open the Serial Monitor (115200 baud). For WiFi TCP, the ESP32 prints its IP:
 
 ```
 Connecting to WiFi....

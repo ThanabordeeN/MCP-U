@@ -2,36 +2,18 @@
 
 ## System Overview
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                     AI / LLM Host                        │
-│  (Claude Desktop, Claude Code, any MCP-compatible host)  │
-└────────────────────────┬─────────────────────────────────┘
-                         │  MCP Protocol (stdio / HTTP)
-                         │  (Calls to MCUs + SQL Queries)
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│               MCP-IoT Client (TypeScript)                │
-│                                                          │
-│  index.ts          — MCP Server, dynamic tools, resources│
-│  transport.ts      — Serial / TCP / Mock abstraction     │
-│  device_manager.ts — Multi-device connection + discovery │
-│  schema_builder.ts — JSON Schema → Zod converter         │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │ Memory Subsystem                                   │  │
-│  │ sqlite_memory_store.ts — DB setup & persistence    │  │
-│  │ buffer_drain_poller.ts — Automated buffer pulling  │  │
-│  │ sqlite_readonly_adapter.ts — Safe SQL execution    │  │
-│  └─────────────────────────────────┬──────────────────┘  │
-└───────┬───────────────────────┬────┼───────────────────--┘
-        │ Serial (UART)         │    │ Local SQLite DB
-        ▼                       ▼    ▼
-┌───────────────┐     ┌─────────────────┐    ┌─────────────────┐
-│ ESP32 #1      │     │ ESP32 #2 (WiFi) │    │ mcpu-memory.db  │
-│ MCP-U lib     │     │ MCP-U lib       │    │ (Historical)    │
-│ GPIO 2, 5, 34 │     │ GPIO 2, 13, 36  │    │                 │
-└───────────────┘     └─────────────────┘    └─────────────────┘
+```mermaid
+graph TD
+    A["AI / LLM Host<br/>(Claude Desktop, Claude Code, any MCP-compatible host)"]
+    B["MCP-IoT Client (TypeScript)<br/><br/>index.ts — MCP Server, dynamic tools, resources<br/>transport.ts — Serial / TCP / Mock abstraction<br/>device_manager.ts — Multi-device connection + discovery<br/>schema_builder.ts — JSON Schema to Zod converter<br/><br/>Memory Subsystem:<br/>sqlite_memory_store.ts — DB setup & persistence<br/>buffer_drain_poller.ts — Automated buffer pulling<br/>sqlite_readonly_adapter.ts — Safe SQL execution"]
+    C["ESP32 #1<br/>MCP-U lib<br/>GPIO 2, 5, 34"]
+    D["ESP32 #2 (WiFi)<br/>MCP-U lib<br/>GPIO 2, 13, 36"]
+    E[("mcpu-memory.db<br/>(Historical)")]
+
+    A <-->|"MCP Protocol (stdio / HTTP)"| B
+    B -->|"Serial (UART)"| C
+    B -->|"TCP Socket"| D
+    B -->|"Local SQLite DB"| E
 ```
 
 ---
@@ -86,58 +68,45 @@
 
 ## Discovery Sequence
 
-```
-Client boots
-    │
-    ├─► DeviceManager.connect_all()
-    │       │
-    │       ├─► SerialTransport.connect()   (open port)
-    │       ├─► wait 600ms                  (MCU boot / DTR reset)
-    │       ├─► rpc.call("get_info")        → { device, version, platform }
-    │       └─► rpc.call("list_tools")      → { tools[], pins[] }
-    │
-    ├─► For each device × each tool:
-    │       server.registerTool(name, zodSchema, handler)
-    │
-    └─► server.connect(StdioTransport)      (ready for Claude)
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Transport
+    participant MCU
+
+    Client->>Transport: DeviceManager.connect_all()
+    Transport->>MCU: SerialTransport.connect() (open port)
+    Note over Transport,MCU: wait 600ms (MCU boot / DTR reset)
+    Transport->>MCU: rpc.call("get_info")
+    MCU-->>Transport: { device, version, platform }
+    Transport->>MCU: rpc.call("list_tools")
+    MCU-->>Transport: { tools[], pins[] }
+    Note over Client: For each device x each tool:<br/>server.registerTool(name, zodSchema, handler)
+    Note over Client: server.connect(StdioTransport) (ready for Claude)
 ```
 
 ---
 
 ## Data Flow — Single Tool Call
 
-```
-Claude calls "gpio_write" with { pin: 2, value: true }
-    │
-    ▼
-index.ts handler
-    │  strips device_id (if multi-device)
-    ▼
-DeviceManager.call("esp32-01", "gpio_write", { pin: 2, value: true })
-    │
-    ▼
-SerialTransport.call("gpio_write", { pin: 2, value: true }, timeout=5000)
-    │  serializes: {"jsonrpc":"2.0","id":42,"method":"gpio_write","params":{"pin":2,"value":true}}\n
-    ▼
-/dev/ttyUSB0 ──────────────────────────────────────────► ESP32
-                                                              │
-                                                    McpDevice._dispatch()
-                                                    _handle_gpio_write()
-                                                    digitalWrite(2, HIGH)
-                                                              │
-ESP32 ◄──────────── {"jsonrpc":"2.0","id":42,"result":{...}}\n
-    │
-    ▼
-SerialTransport._handle_line() → resolves pending[42]
-    │
-    ▼
-DeviceManager.call() resolves
-    │
-    ▼
-index.ts returns { content: [{ type: "text", text: "..." }] }
-    │
-    ▼
-Claude receives result
+```mermaid
+sequenceDiagram
+    participant Claude
+    participant Index as index.ts handler
+    participant DM as DeviceManager
+    participant Transport as SerialTransport
+    participant ESP32
+
+    Claude->>Index: gpio_write({ pin: 2, value: true })
+    Note over Index: strips device_id (if multi-device)
+    Index->>DM: call("esp32-01", "gpio_write", params)
+    DM->>Transport: call("gpio_write", params, timeout=5000)
+    Transport->>ESP32: {"jsonrpc":"2.0","id":42,"method":"gpio_write",...}
+    Note over ESP32: McpDevice._dispatch()<br/>_handle_gpio_write()<br/>digitalWrite(2, HIGH)
+    ESP32-->>Transport: {"jsonrpc":"2.0","id":42,"result":{...}}
+    Transport-->>DM: _handle_line() resolves pending[42]
+    DM-->>Index: call() resolves
+    Index-->>Claude: { content: [{ type: "text", ... }] }
 ```
 
 ---
