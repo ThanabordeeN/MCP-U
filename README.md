@@ -212,6 +212,8 @@ With multiple devices, tools are named `{device_id}__{tool_name}` (e.g. `robot__
 └── docs-site/              Starlight documentation site
 ```
 
+For contribution and release workflow details, including which folder to publish npm, Arduino, and PlatformIO packages from, see the [Contributing guide](docs-site/src/content/docs/meta/contributing.mdx).
+
 ---
 
 ## License

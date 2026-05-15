@@ -1,214 +1,298 @@
 ---
 title: Contributing
-description: How to contribute to the MCP/U project.
+description: Project overview, repository ownership, development workflow, and release steps for MCP/U.
 ---
 
-Thank you for your interest in contributing to MCP/U! This guide covers how to set up your development environment, follow our code style, and submit changes.
+This page is the source of truth for how MCP/U is organized and how to contribute without publishing the wrong package from the wrong folder.
 
 ---
 
-## Project Structure
+## Project Overview
 
-MCP/U is organized into three main components:
+MCP/U has two public codebases and two publish targets:
 
+| Area | Repository / folder | Published as | Purpose |
+|------|---------------------|--------------|---------|
+| Client, docs, demo firmware | `ThanabordeeN/MCP-U` | `mcpu-client` on npm | Runs on a computer, connects AI agents to MCUs, hosts docs and examples |
+| Arduino firmware library | `ThanabordeeN/MCP-U_Arduino` | `MCP-U` for Arduino IDE / PlatformIO | Runs on the MCU and exposes GPIO, pins, buffers, and custom tools |
+
+The runtime path is:
+
+```text
+AI host
+  -> MCP stdio
+  -> mcpu-client npm package
+  -> Serial or TCP
+  -> MCU firmware using the MCP-U Arduino library
 ```
+
+The client and firmware library are released separately. Their versions can move independently when only one side changes.
+
+---
+
+## Repository Responsibilities
+
+### `MCP-U`
+
+Use this repository for:
+
+- TypeScript client changes in `client/`
+- Documentation site changes in `docs-site/`
+- Demo firmware project changes in `firmware/`
+- PlatformIO example projects in `examples/`
+- Protocol, architecture, and guide documents in `docs/`
+
+Important folders:
+
+```text
 MCP-U/
-├── firmware/           # Arduino/PlatformIO library
-│   ├── lib/McpIot/   # McpIot library (header + source)
-│   ├── examples/     # Example projects
-│   └── platformio.ini
-│
-├── client/            # TypeScript MCP server
-│   ├── src/          # TypeScript source
-│   ├── dist/         # Compiled output
-│   └── package.json
-│
-└── docs-site/         # Astro/Starlight documentation
-    ├── src/content/docs/
-    └── astro.config.mjs
+  client/                  npm package: mcpu-client
+  firmware/                demo PlatformIO firmware project
+    src/main.cpp           demo firmware entrypoint
+    lib/MCP-U/             local library copy used by the demo project
+  examples/                standalone PlatformIO examples
+  docs-site/               Astro/Starlight documentation site
+  docs/                    markdown reference docs
 ```
 
-| Component | Purpose |
-|-----------|---------|
-| `firmware/` | McpIot Arduino library — JSON-RPC over Serial/TCP |
-| `client/` | mcpu-client npm package — MCP server, tool discovery |
-| `docs-site/` | Documentation website (this site) |
+### `MCP-U_Arduino`
+
+Use this repository for the firmware library that users install through Arduino IDE or PlatformIO.
+
+Important folders:
+
+```text
+MCP-U_Arduino/
+  src/MCP-U.h              public firmware API
+  src/MCP-U.cpp            firmware implementation
+  examples/                Arduino IDE examples
+  library.properties       Arduino Library Manager metadata
+  library.json             PlatformIO registry metadata
+```
+
+For firmware library work, prefer changing `MCP-U_Arduino` first. If the same change is needed by the monorepo demo firmware, sync the matching files into `MCP-U/firmware/lib/MCP-U/`.
 
 ---
 
-## Development Environment
+## Where To Make Changes
 
-### Prerequisites
+| Change type | Edit here | Verify with | Publish from |
+|-------------|-----------|-------------|--------------|
+| npm client behavior | `MCP-U/client/src/` | `npm run build`, `npm test` from `MCP-U/client` | `MCP-U/client` |
+| npm package metadata | `MCP-U/client/package.json` and lockfile | `npm pack --dry-run` from `MCP-U/client` | `MCP-U/client` |
+| Documentation site | `MCP-U/docs-site/src/content/docs/` | `npm run build` from `MCP-U/docs-site` | docs hosting workflow |
+| Demo firmware | `MCP-U/firmware/src/` | `pio run` from `MCP-U/firmware` | not published as a library |
+| Arduino library API/implementation | `MCP-U_Arduino/src/` | `pio pkg pack` from `MCP-U_Arduino` | `MCP-U_Arduino` |
+| Arduino IDE examples | `MCP-U_Arduino/examples/` | compile example in Arduino IDE or PlatformIO | `MCP-U_Arduino` |
+| PlatformIO examples | `MCP-U/examples/` | `pio run` from each example | not published as a package |
 
-- **Node.js** 20+ (for client and docs)
-- **Python** 3.8+ (for PlatformIO)
-- **PlatformIO** (`pip install platformio`)
-- **Git**
+Do not run `pio pkg publish` from `MCP-U/client`. That folder contains an npm `package.json`, not a PlatformIO `library.json`.
 
-### Setting Up
+Do not publish the demo firmware project as the canonical library. `MCP-U/firmware` is a consumer/demo project. The canonical firmware library package is `MCP-U_Arduino`.
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ThanabordeeN/mcpu.git
-   cd mcpu
-   ```
+---
 
-2. **Set up the client:**
-   ```bash
-   cd client
-   npm install
-   npm run build
-   ```
+## Development Setup
 
-3. **Set up the firmware:**
-   ```bash
-   cd firmware
-   pio run
-   ```
-
-4. **Set up the docs site:**
-   ```bash
-   cd docs-site
-   npm install
-   npm run dev
-   ```
-
-### Running Tests
-
-Currently, the project relies on manual testing with MCP Inspector. Run:
+### Client
 
 ```bash
-# Client
-cd client
-npm run dev
+cd MCP-U/client
+npm install
+npm run build
+npm test
+```
 
-# Docs
-cd docs-site
+### Documentation Site
+
+```bash
+cd MCP-U/docs-site
+npm install
 npm run dev
 ```
 
----
-
-## Code Style Guidelines
-
-### Firmware (C++)
-
-- Use **2-space indentation**
-- **Curly braces** on same line as `if`/`while`/`for`
-- **Snake_case** for variables and functions: `digital_write`, `serial_buffer`
-- **PascalCase** for classes: `McpDevice`, `JsonRpcRequest`
-- **All caps** for constants: `MCP_MAX_PINS`, `JSON_BUFFER_SIZE`
-- Add **comments** for non-obvious logic
-- Keep functions under 50 lines where possible
-
-### Client (TypeScript)
-
-- Use **Prettier** for formatting (run `npm run format`)
-- Use **2-space indentation**
-- Use **camelCase** for variables and functions
-- Use **PascalCase** for types and interfaces
-- Add **JSDoc comments** for public APIs
-- Keep files under 200 lines where possible
-
-### Documentation (Markdown/MDX)
-
-- Use **sentence case** for headings
-- Use **backticks** for code: `gpio_write`, `Serial.begin()`
-- Use **bold** for UI elements: **Device Manager**, **MCP Inspector**
-- Use **tables** for structured information
-- Use **callouts** sparingly: `:::note`, `:::tip`, `:::caution`
-
----
-
-## Submitting Changes
-
-### 1. Fork the Repository
-
-Click "Fork" on GitHub to create your own copy.
-
-### 2. Create a Branch
+### Demo Firmware
 
 ```bash
-git checkout -b feature/my-new-feature
-# or
-git checkout -b fix/issue-description
+cd MCP-U/firmware
+pio run
 ```
 
-### 3. Make Your Changes
-
-- Follow the code style guidelines above
-- Test your changes manually
-- Update documentation if needed
-
-### 4. Commit with a Clear Message
+### Arduino Library Package
 
 ```bash
-git add .
-git commit -m "Add support for PWM on ESP32-S3"
+cd MCP-U_Arduino
+pio pkg pack
 ```
 
-Write clear, concise commit messages:
-- Start with a verb: "Add", "Fix", "Update", "Remove"
-- Keep the first line under 72 characters
-- Explain *what* and *why*, not *how*
+If `pio` is not on PATH on Windows, call the installed executable directly:
 
-### 5. Submit a Pull Request
-
-1. Push to your fork:
-   ```bash
-   git push origin feature/my-new-feature
-   ```
-
-2. Open a Pull Request on GitHub: https://github.com/ThanabordeeN/mcpu/compare
-
-3. Fill in the PR template:
-   - **Description** — What does this change do?
-   - **Testing** — How did you test it?
-   - **Related issues** — Link any issues this addresses
-
-### 6. Respond to Review
-
-- Be responsive to feedback
-- Make requested changes in new commits
-- Once approved, your PR will be merged
+```powershell
+C:\Users\origi\AppData\Roaming\Python\Python313\Scripts\pio.exe pkg pack
+```
 
 ---
 
-## Issue Reporting Guidelines
+## Sync Rules For Firmware Library Changes
 
-When reporting an issue, include:
+The firmware library exists in two places:
+
+| Location | Role |
+|----------|------|
+| `MCP-U_Arduino/src/MCP-U.h` and `MCP-U_Arduino/src/MCP-U.cpp` | canonical public library |
+| `MCP-U/firmware/lib/MCP-U/MCP-U.h` and `MCP-U/firmware/lib/MCP-U/MCP-U.cpp` | local copy used by the monorepo demo firmware |
+
+When changing firmware library behavior:
+
+1. Change `MCP-U_Arduino/src/` first.
+2. Copy the same `MCP-U.h` and `MCP-U.cpp` changes into `MCP-U/firmware/lib/MCP-U/`.
+3. Keep `library.properties` and `library.json` versions aligned when the change is released.
+4. Verify the files match before release:
+
+```powershell
+cd D:\Dev\Prototype\MCP-U\firmware\lib\MCP-U
+git diff --no-index -- MCP-U.h ..\..\..\..\MCP-U_Arduino\src\MCP-U.h
+git diff --no-index -- MCP-U.cpp ..\..\..\..\MCP-U_Arduino\src\MCP-U.cpp
+```
+
+No output from those commands means the core firmware files match.
+
+---
+
+## Release Checklist
+
+Use this section before publishing anything.
+
+### npm client release
+
+Run from `MCP-U/client` only:
+
+```bash
+cd MCP-U/client
+npm run build
+npm test
+npm pack --dry-run
+npm publish
+```
+
+Before publishing, check:
+
+- `package.json` version is the intended npm version.
+- `package-lock.json` has the same package version.
+- Runtime metadata in `src/index.ts` matches the published version.
+- `dist/` is rebuilt by `npm run build`.
+
+After publishing:
+
+```bash
+npm view mcpu-client version
+```
+
+### Arduino / PlatformIO library release
+
+Run from `MCP-U_Arduino` only:
+
+```bash
+cd MCP-U_Arduino
+pio pkg pack
+pio pkg publish
+```
+
+Before publishing, check:
+
+- `library.properties` has the intended Arduino library version.
+- `library.json` has the same PlatformIO library version.
+- `library.json.repository.url` points to `https://github.com/ThanabordeeN/MCP-U_Arduino`.
+- `src/MCP-U.h` and `src/MCP-U.cpp` contain the intended firmware API/implementation.
+- The matching monorepo local copy is synced if the demo firmware depends on the same behavior.
+
+After publishing, tag the Arduino library repo:
+
+```bash
+git tag -a vX.Y.Z -m "MCP-U Arduino X.Y.Z"
+git push origin main
+git push origin vX.Y.Z
+```
+
+### Demo firmware release
+
+The demo firmware in `MCP-U/firmware` is not a registry package. Verify it with:
+
+```bash
+cd MCP-U/firmware
+pio run
+```
+
+Publish the actual library from `MCP-U_Arduino`, not from the demo firmware folder.
+
+---
+
+## Common Mistakes
+
+### Running PlatformIO publish from the npm client folder
+
+Wrong:
+
+```bash
+cd MCP-U/client
+pio pkg publish
+```
+
+Why it fails: PlatformIO reads `client/package.json`, sees npm-only fields like `scripts.build`, and reports manifest errors.
+
+Correct:
+
+```bash
+cd MCP-U_Arduino
+pio pkg publish
+```
+
+### Publishing from `MCP-U/firmware` root
+
+`MCP-U/firmware` is a PlatformIO project, not the canonical published library. Use it for `pio run`, uploads, and demo firmware development.
+
+For library publishing, use:
+
+```bash
+cd MCP-U_Arduino
+pio pkg publish
+```
+
+### Forgetting that npm and Arduino versions are separate
+
+`mcpu-client` and the Arduino library are different packages. A client-only fix may publish `mcpu-client@1.2.1` while the Arduino library remains `MCP-U@1.2.0`.
+
+---
+
+## Pull Request Checklist
+
+Before opening a PR:
+
+- Build or test the component you changed.
+- Update docs when behavior, public APIs, install steps, or release flow changes.
+- Mention which package is affected: npm client, Arduino library, docs, examples, or demo firmware.
+- Include exact verification commands and results in the PR description.
+- Avoid unrelated generated files such as local databases, `.pio/`, temp folders, and package tarballs.
+
+---
+
+## Issue Reporting
+
+Include the details that match the failing area:
 
 | Field | Description |
 |-------|-------------|
-| **Board** | ESP32, ESP8266, Uno, Mega, etc. |
-| **Firmware version** | From `pio run` output or git commit |
-| **Client version** | From `npm list mcpu-client` |
-| **Steps to reproduce** | Clear, numbered steps |
-| **Expected behavior** | What should happen |
-| **Actual behavior** | What actually happened |
-| **Error message** | Exact text, including any stack trace |
-| **Serial output** | Relevant output from Serial Monitor |
-
-:::tip[Use templates]
-GitHub issue templates help ensure you include all necessary information.
-:::
-
----
-
-## Communication
-
-- **GitHub Issues** — Bug reports, feature requests, questions
-- **GitHub Discussions** — General discussion, show and tell
-- **Repository** — https://github.com/ThanabordeeN/mcpu
+| Board | ESP32, ESP8266, Uno, Mega, Nano, etc. |
+| Firmware library version | Arduino/PlatformIO `MCP-U` version or git commit |
+| Client version | `npm list mcpu-client` or `npm view mcpu-client version` |
+| Transport | Serial, TCP, mock |
+| Steps to reproduce | Numbered steps from a clean start |
+| Expected behavior | What should happen |
+| Actual behavior | What happened instead |
+| Error output | Exact terminal, serial monitor, or MCP client output |
 
 ---
 
 ## License
 
-By contributing to MCP/U, you agree that your contributions will be licensed under the MIT License.
-
----
-
-## Thank You!
-
-Every contribution — whether code, documentation, or issue reports — helps make MCP/U better for everyone. We appreciate your time and effort!
+By contributing to MCP/U, you agree that your contributions will be licensed under LGPL-3.0, the same license used by this project.
