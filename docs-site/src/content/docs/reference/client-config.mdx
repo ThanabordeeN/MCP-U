@@ -22,12 +22,12 @@ All configuration is done via environment variables.
 ### Single Device — `SERIAL_PORT`
 
 ```bash
-SERIAL_PORT=/dev/ttyACM0 npx mcpu-client
+SERIAL_PORT=/dev/ttyACM0 npx -y mcpu-client
 ```
 
 Custom baud rate:
 ```bash
-SERIAL_PORT=/dev/ttyACM0 SERIAL_BAUD=9600 npx mcpu-client
+SERIAL_PORT=/dev/ttyACM0 SERIAL_BAUD=9600 npx -y mcpu-client
 ```
 
 ### Multiple Devices — `DEVICES`
@@ -36,22 +36,22 @@ Format: `id:port:baud` (serial) or `id:host:port:tcp` (TCP), comma-separated.
 
 **Serial:**
 ```bash
-DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 npx mcpu-client
+DEVICES=robot:/dev/ttyUSB0:115200,display:/dev/ttyACM0:115200 npx -y mcpu-client
 ```
 
 **TCP (WiFi):**
 ```bash
-DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npx mcpu-client
+DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npx -y mcpu-client
 ```
 
 **Virtual Mock Testing:**
 ```bash
-DEVICES=mock-mcu:mock npx mcpu-client
+DEVICES=mock-mcu:mock npx -y mcpu-client
 ```
 
 **Windows:**
 ```bash
-set DEVICES=board1:COM3:115200,board2:COM4:115200 && npx mcpu-client
+set DEVICES=board1:COM3:115200,board2:COM4:115200 && npx -y mcpu-client
 ```
 
 ---
@@ -68,6 +68,31 @@ MCP-U Client includes a built-in "Buffered Pull Memory" feature that stores sens
 | `MCPU_BUFFER_DRAIN_ENABLED` | Automated polling for buffered pins | `true` |
 | `MCPU_RAW_RETENTION_HOURS` | Keep raw sensor samples for X hours | `24` |
 | `MCPU_TOOL_CALL_RETENTION_DAYS` | Keep execution logs for X days | `365` |
+
+### Configuration Examples
+
+**Via Command Line (CLI):**
+```bash
+MCPU_RAW_RETENTION_HOURS=48 MCPU_BUFFER_DRAIN_ENABLED=false DEVICES=esp32:/dev/ttyUSB0:115200 npx -y mcpu-client
+```
+
+**Via Claude Desktop (`claude_desktop_config.json`):**
+```json
+{
+  "mcpServers": {
+    "mcu": {
+      "command": "npx",
+      "args": ["-y", "mcpu-client"],
+      "env": {
+        "DEVICES": "mock-mcu:mock",
+        "MCPU_MEMORY_ENABLED": "true",
+        "MCPU_MEMORY_CONNECTION_URL": "sqlite:////absolute/path/to/my-memory.db",
+        "MCPU_RAW_RETENTION_HOURS": "48"
+      }
+    }
+  }
+}
+```
 
 ---
 

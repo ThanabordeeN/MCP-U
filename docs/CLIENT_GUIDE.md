@@ -111,7 +111,9 @@ npm run dev
       "command": "node",
       "args": ["/home/user/ESP32-MCP-TESTING/client/dist/index.js"],
       "env": {
-        "DEVICES": "esp32-01:/dev/ttyUSB0:115200"
+        "DEVICES": "esp32-01:/dev/ttyUSB0:115200",
+        "MCPU_MEMORY_ENABLED": "true",
+        "MCPU_RAW_RETENTION_HOURS": "48"
       }
     }
   }
@@ -132,7 +134,9 @@ npm run dev
         "C:\\Users\\YourName\\ESP32-MCP-TESTING\\client\\dist\\index.js"
       ],
       "env": {
-        "DEVICES": "esp32-01:COM3:115200"
+        "DEVICES": "esp32-01:COM3:115200",
+        "MCPU_MEMORY_ENABLED": "true",
+        "MCPU_MEMORY_CONNECTION_URL": "sqlite:///C:/Users/YourName/mcpu-memory.db"
       }
     }
   }
@@ -144,7 +148,7 @@ npm run dev
 ## Testing with MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+npx @modelcontextprotocol/inspector npx -y mcpu-client
 ```
 
 Open the browser URL shown. You can:

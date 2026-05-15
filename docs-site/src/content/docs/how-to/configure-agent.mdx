@@ -181,7 +181,7 @@ OpenCode has no CLI add command — edit `opencode.json` directly.
   "mcp": {
     "mcpu": {
       "type": "local",
-      "command": ["npx", "mcpu-client"],
+      "command": ["npx", "-y", "mcpu-client"],
       "enabled": true,
       "environment": {
         "SERIAL_PORT": "/dev/ttyACM0"
@@ -199,7 +199,7 @@ OpenCode has no CLI add command — edit `opencode.json` directly.
   "mcp": {
     "mcpu": {
       "type": "local",
-      "command": ["npx", "mcpu-client"],
+      "command": ["npx", "-y", "mcpu-client"],
       "enabled": true,
       "environment": {
         "DEVICES": "mydevice:192.168.1.42:3000:tcp"
@@ -265,4 +265,4 @@ Examples:
 - [Connect via Serial](/how-to/connect-serial/) — detailed serial setup
 - [Connect via WiFi TCP](/how-to/connect-wifi-tcp/) — detailed TCP setup
 - [Multi-Device Setup](/how-to/multi-device-setup/) — multiple MCUs
-- [Debug Connection Issues](/how-to/debug-connection/) — troubleshooting
+- [Debug Connection Issues](/how-to/debug-connection/) — troubleshootingingtroubleshooting
