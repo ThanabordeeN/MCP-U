@@ -40,6 +40,7 @@ export default defineConfig({
           items: [
             { label: 'Quick Start', slug: 'tutorials/getting-started' },
             { label: 'First Custom Tool', slug: 'tutorials/first-custom-tool' },
+            { label: 'Querying Memory with AI', slug: 'tutorials/querying-memory-with-ai' },
           ],
         },
         {
@@ -48,7 +49,9 @@ export default defineConfig({
             { label: 'Connect via Serial (USB)', slug: 'how-to/connect-serial' },
             { label: 'Connect via WiFi TCP', slug: 'how-to/connect-wifi-tcp' },
             { label: 'Multi-Device Setup', slug: 'how-to/multi-device-setup' },
+            { label: 'Enable Pin Buffer', slug: 'how-to/enable-pin-buffer' },
             { label: 'Add a Sensor or Peripheral', slug: 'how-to/add-sensor' },
+            { label: 'Virtual Mock Testing', slug: 'how-to/virtual-mock-testing' },
             { label: 'Connect AI Agents', slug: 'how-to/configure-agent' },
             { label: 'Debug Connection Issues', slug: 'how-to/debug-connection' },
           ],
@@ -61,6 +64,7 @@ export default defineConfig({
             { label: 'Client Configuration', slug: 'reference/client-config' },
             { label: 'CLI Commands', slug: 'reference/cli-commands' },
             { label: 'Build Flags & Limits', slug: 'reference/build-flags' },
+            { label: 'Memory Database Schema', slug: 'reference/memory-schema' },
             { label: 'Protocol Specification', slug: 'reference/protocol' },
             { label: 'Compatibility', slug: 'reference/compatibility' },
           ],
