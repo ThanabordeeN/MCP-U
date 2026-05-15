@@ -148,7 +148,7 @@ npm run dev
 ## Testing with MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+npx @modelcontextprotocol/inspector npx -y mcpu-client
 ```
 
 Open the browser URL shown. You can:
