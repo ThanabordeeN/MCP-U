@@ -1,0 +1,57 @@
+---
+title: Enable Pin Buffers
+description: How to configure hardware pins on your MCU to buffer data locally for the client to poll.
+---
+
+Instead of pushing data continuously over the serial port, your MCU can store sensor readings locally in a ring buffer. The `mcpu-client` will automatically calculate when the buffer is about to fill up and poll the data just in time.
+
+## Firmware Configuration
+
+To enable buffering for a standard pin (like an ADC sensor), you need to define its capabilities and sampling rate when setting up the pin registry in your `main.cpp`.
+
+```cpp
+#include <MCP-U.h>
+
+McpDevice mcp("sensor-node", "1.0.0");
+
+void setup() {
+  Serial.begin(115200);
+
+  // Example: Setting up an ADC pin with a buffer
+  // Pin 34, Name, Type, Description
+  McpPin& mySensor = mcp.add_pin(34, "voltage_sensor", "adc", "Main voltage monitor");
+  
+  // Enable the buffer capability
+  mySensor.capabilities.buffer = true;
+  
+  // Configure the sampling rate and buffer size
+  // The MCU will sample every 100ms and store up to 50 samples locally.
+  mySensor.sampling.interval_ms = 100;
+  mySensor.sampling.buffer_size = 50;
+
+  mcp.begin(Serial, 115200);
+}
+
+void loop() {
+  // Your sampling logic goes here
+  // You must push values to the pin's buffer at the specified interval
+  static unsigned long lastSample = 0;
+  if (millis() - lastSample >= 100) {
+    lastSample = millis();
+    int val = analogRead(34);
+    mcp.push_pin_buffer(34, val); // Hypothetical API for illustration
+  }
+
+  mcp.loop();
+}
+```
+
+## How the Client Reacts
+
+When the `mcpu-client` connects, it reads this metadata.
+1. It calculates the buffer capacity: `50 samples * 100ms = 5000ms (5 seconds)`.
+2. It sets a polling timer at 75% capacity (every 3.75 seconds).
+3. It calls `get_pin_buffer` to extract the array of values.
+4. It parses the array, infers timestamps for each value, and saves them to the local SQLite database.
+
+*(Note: If you are returning complex data arrays from custom logic, refer to the [Custom Tool Buffer Support](/tutorials/first-custom-tool#step-5-returning-custom-buffers-optional) tutorial instead).*

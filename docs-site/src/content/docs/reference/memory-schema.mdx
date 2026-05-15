@@ -1,0 +1,55 @@
+---
+title: Memory Database Schema
+description: Reference for the SQLite database schema used by the Buffered Pull Memory subsystem.
+---
+
+When the Memory Subsystem is enabled, the `mcpu-client` creates an SQLite database (`mcpu-memory.db` by default) to store historical data. The LLM can query this database using the `sql_readonly_query` tool.
+
+Here is the structure of the most commonly used tables and views.
+
+## Core Tables
+
+### `mcp_u_observations`
+Stores all historical data points collected from the MCU (both from buffered pins and custom tools).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `timestamp_ms` | INTEGER | Epoch timestamp of the observation. |
+| `device_id` | TEXT | ID of the device (e.g., `esp32-01`). |
+| `resource_name` | TEXT | Name of the pin or custom resource. |
+| `observation_type` | TEXT | E.g., `buffer_drain`, `custom_buffer_drain`. |
+| `value_num` | REAL | The numeric value recorded. |
+| `source` | TEXT | How the data was acquired (e.g., `get_pin_buffer`). |
+
+### `mcp_u_tool_calls`
+Keeps a log of every MCP tool execution invoked by the LLM or user.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `started_at_ms` | INTEGER | When the call started. |
+| `device_id` | TEXT | Target device. |
+| `tool_name` | TEXT | Name of the executed tool. |
+| `params_json` | TEXT | JSON string of the input parameters. |
+| `result_json` | TEXT | JSON string of the result. |
+| `status` | TEXT | `ok` or `error`. |
+
+### `mcp_u_buffer_drains`
+Audit log of the background poller fetching data from the MCU ring buffers.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `started_at_ms` | INTEGER | When the drain occurred. |
+| `device_id` | TEXT | Target device. |
+| `resource_name` | TEXT | The buffered pin or resource. |
+| `returned_count`| INTEGER | How many samples were pulled. |
+| `status` | TEXT | `ok` or `error`. |
+
+---
+
+## Helpful Views
+
+For easier querying, the database provides built-in views:
+
+- **`latest_observations`**: Selects all observations ordered by newest first.
+- **`numeric_observations`**: Filters observations to only include those with valid `value_num` entries.
+- **`device_signal_summary`**: Provides aggregates (min, max, avg, sample count) grouped by device and resource.
