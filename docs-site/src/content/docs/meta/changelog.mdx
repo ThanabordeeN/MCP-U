@@ -6,8 +6,53 @@ description: Version history and release notes for MCP/U.
 All notable changes to MCP/U are documented in this file.
 
 :::note[Maintenance]
-This project is currently maintained at [https://github.com/ThanabordeeN/mcpu](https://github.com/ThanabordeeN/mcpu). Please refer to the GitHub repository for the latest releases and updates.
+This project is maintained at [github.com/ThanabordeeN/MCP-U](https://github.com/ThanabordeeN/MCP-U) (client + docs) and [github.com/ThanabordeeN/MCP-U_Arduino](https://github.com/ThanabordeeN/MCP-U_Arduino) (firmware library).
 :::
+
+---
+
+## v1.2.0 — Firmware-Driven Polling & Bug Fixes
+
+*Released: 2026-05-15*
+
+### Added
+
+- **`McpPolling(ms)` — firmware-declared auto-poll** (`MCP-U_Arduino`)
+  - New `McpPollConfig` struct and `McpPolling(interval_ms)` helper
+  - Register a tool with `mcp.add_tool("name", "desc", handler, McpPolling(2000))`
+  - Firmware emits `"polling": {"enabled": true, "interval_ms": N}` in `list_tools`
+  - Client reads the interval and schedules calls automatically — no env vars needed
+  - Buffer results (`type: "buffer"`) from polled tools are written to memory as observations
+
+### Fixed
+
+- **`writeResource` crash on startup** (`mcpu-client`) — missing `unit`, `data_type`,
+  `sampling_enabled`, and `metadata_json` fields caused `"Missing named parameter unit"` error
+- **`sql_readonly_query` and `memory_status` tools not registering** — previously gated
+  on `memory && readonlyAdapter`; both tools now always register with null-safe handlers
+  so the LLM can always call them (and get a descriptive error if memory is unavailable)
+- **`get_pin_summary`, `get_pin_buffer`, `get_pin_events` schema** — `pin` parameter
+  was declared as `"string"` which caused MCP Inspector and clients to send `"34"` instead of
+  `34`, failing the `_find_pin()` lookup; now correctly declared as `"integer"`
+
+---
+
+## v1.1.0 — Memory Subsystem
+
+*Released: 2025-11-01*
+
+### Added
+
+- **SQLite memory subsystem** (`mcpu-client`)
+  - Local `mcpu-memory.db` stores all sensor observations, tool calls, and buffer drains
+  - `sql_readonly_query` MCP tool — LLM can query history with raw SQL (SELECT/WITH only)
+  - `memory_status` MCP tool — returns driver status, row counts, poller health
+  - `mcu://cache/schema`, `mcu://cache/status`, `mcu://cache/examples` MCP resources
+- **Buffer Drain Poller** — automatically drains pin ring buffers from ESP32 into memory
+  based on `capabilities.buffer` + `sampling` metadata discovered via `list_tools`
+- **Env-var auto-poll** (`MCPU_AUTO_POLL_<TOOLNAME>=<ms>`) — workaround for custom tools
+  before firmware-declared polling was available (superseded by `McpPolling` in v1.2.0)
+- **Retention config** — `MCPU_RAW_RETENTION_HOURS`, `MCPU_TOOL_CALL_RETENTION_DAYS`
 
 ---
 

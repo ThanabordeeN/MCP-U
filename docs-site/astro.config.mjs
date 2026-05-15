@@ -40,6 +40,7 @@ export default defineConfig({
           items: [
             { label: 'Quick Start', slug: 'tutorials/getting-started' },
             { label: 'First Custom Tool', slug: 'tutorials/first-custom-tool' },
+            { label: 'Query Memory with AI', slug: 'tutorials/querying-memory-with-ai' },
           ],
         },
         {
@@ -57,6 +58,8 @@ export default defineConfig({
               label: 'Develop',
               items: [
                 { label: 'Add a Sensor', slug: 'how-to/add-sensor' },
+                { label: 'Enable Pin Buffering', slug: 'how-to/enable-pin-buffer' },
+                { label: 'Virtual / Mock Testing', slug: 'how-to/virtual-mock-testing' },
                 { label: 'Connect AI Agents', slug: 'how-to/configure-agent' },
               ],
             },
@@ -79,6 +82,7 @@ export default defineConfig({
               items: [
                 { label: 'Configuration', slug: 'reference/client-config' },
                 { label: 'CLI Commands', slug: 'reference/cli-commands' },
+                { label: 'Memory Schema', slug: 'reference/memory-schema' },
               ],
             },
             {
