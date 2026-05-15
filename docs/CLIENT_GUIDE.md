@@ -51,9 +51,23 @@ DEVICES=esp32-01:/dev/ttyUSB0:115200 npm start
 # Multiple devices
 DEVICES=robot:/dev/ttyUSB0:115200,sensor:192.168.1.50:3000:tcp npm start
 
+# Virtual Mock Testing
+DEVICES=mock-mcu:mock npm start
+
 # Windows
 set DEVICES=esp32-01:COM3:115200 && npm start
 ```
+
+### Memory Subsystem Configuration
+
+MCP-U Client includes a built-in "Buffered Pull Memory" feature that stores sensor history and tool execution logs in a local SQLite database, allowing LLMs to query historical context securely. This feature is enabled by default.
+
+Key environment variables:
+- `MCPU_MEMORY_ENABLED`: `true` or `false` (default: `true`)
+- `MCPU_MEMORY_CONNECTION_URL`: SQLite connection path (default: `sqlite:///./mcpu-memory.db`)
+- `MCPU_SQL_READONLY_ENABLED`: Allow LLM to use `sql_readonly_query` tool (default: `true`)
+- `MCPU_BUFFER_DRAIN_ENABLED`: Enable automated polling for buffered pins (default: `true`)
+- `MCPU_RAW_RETENTION_HOURS`: How long to keep raw sensor samples (default: `24`)
 
 ---
 
