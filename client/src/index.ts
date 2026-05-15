@@ -112,7 +112,7 @@ if (memConfig.MEMORY_ENABLED) {
     await memory.writeSession({
       session_id: sessionId,
       started_at_ms: Date.now(),
-      client_version: "1.1.0",
+      client_version: "1.2.0",
       memory_profile: "balanced",
     });
 
@@ -209,7 +209,7 @@ if (memConfig.MEMORY_ENABLED) {
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const server = new McpServer({ name: "MCP-U", version: "1.1.0" });
+const server = new McpServer({ name: "MCP-U", version: "1.2.0" });
 
 // ---------------------------------------------------------------------------
 // Meta tool — always present
